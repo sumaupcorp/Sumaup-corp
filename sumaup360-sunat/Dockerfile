@@ -16,5 +16,6 @@ COPY app ./app
 COPY run.py ./run.py
 
 EXPOSE 8090
-# Corre bajo Xvfb para soportar navegador visible dentro del contenedor.
-CMD ["xvfb-run", "-a", "--server-args=-screen 0 1280x1024x24", "python", "run.py"]
+# Xvfb en background + DISPLAY para navegador visible (WAF F5 de SUNAT), luego Flask.
+# (xvfb-run como wrapper del server de larga vida resultaba inestable.)
+CMD ["sh", "-c", "Xvfb :99 -screen 0 1280x1024x24 -nolisten tcp >/tmp/xvfb.log 2>&1 & export DISPLAY=:99 && exec python run.py"]
