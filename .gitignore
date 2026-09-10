@@ -16,6 +16,11 @@ application-local.yml
 serviceAccount*.json
 run-local.secrets.ps1
 **/run-local.secrets.ps1
+# Firma Android (Google Play)
+key.properties
+**/key.properties
+*.jks
+*.keystore
 # (se conserva .env.example y run-local.secrets.example.ps1)
 
 # --- Node / Next.js ---
