@@ -1,0 +1,56 @@
+# ==== SUMAUP360 monorepo (Sumaup-corp) ====
+
+# --- Secretos (NUNCA subir) ---
+firebase-service-account.json
+**/firebase-service-account.json
+application-local.yml
+**/application-local.yml
+.env
+.env.local
+.env.*.local
+**/.env
+**/.env.local
+**/.env.*.local
+*.pem
+*.key
+serviceAccount*.json
+run-local.secrets.ps1
+**/run-local.secrets.ps1
+# (se conserva .env.example y run-local.secrets.example.ps1)
+
+# --- Node / Next.js ---
+node_modules/
+.next/
+out/
+dist/
+build/
+.turbo/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# --- Java / Maven (backend) ---
+target/
+*.class
+*.jar
+!**/.mvn/wrapper/maven-wrapper.jar
+
+# --- Flutter / Dart (mobile) ---
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+.packages
+.pub-cache/
+.pub/
+**/build/
+
+# --- reborn: tiene su propio repo (polyrepo), fuera del monorepo ---
+/sumaup360-reborn/
+
+# --- IDE / OS ---
+.idea/
+*.iml
+.DS_Store
+Thumbs.db
+*.log

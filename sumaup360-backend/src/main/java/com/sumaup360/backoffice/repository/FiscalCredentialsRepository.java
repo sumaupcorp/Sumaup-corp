@@ -1,0 +1,11 @@
+package com.sumaup360.backoffice.repository;
+
+import com.sumaup360.backoffice.domain.FiscalCredentials;
+import org.springframework.data.jpa.repository.JpaRepository;
+
+import java.util.Optional;
+import java.util.UUID;
+
+public interface FiscalCredentialsRepository extends JpaRepository<FiscalCredentials, UUID> {
+    Optional<FiscalCredentials> findByTenantId(UUID tenantId);
+}

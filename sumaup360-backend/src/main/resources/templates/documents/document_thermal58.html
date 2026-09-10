@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="es">
+<head>
+    <meta charset="UTF-8"/>
+    <title th:text="${doc.meta.fullNumber}">Ticket</title>
+    <style th:inline="text">
+        @page { size: 58mm 297mm; margin: 2mm; }
+        * { box-sizing: border-box; }
+        body { font-family: [[${cfg.fontFamily}]]; color: #000; font-size: 9px; width: 54mm; }
+        .center { text-align: center; }
+        .b { font-weight: bold; }
+        .name { font-size: 11px; font-weight: bold; }
+        .muted { color: #333; font-size: 8px; }
+        .line { border-top: 1px dashed #000; margin: 4px 0; }
+        .type { font-weight: bold; font-size: 10px; margin-top: 2px; }
+        table { width: 100%; border-collapse: collapse; }
+        td { padding: 1px 0; vertical-align: top; }
+        td.num { text-align: right; }
+        .grand { font-size: 10px; font-weight: bold; }
+        .qr { width: 30mm; height: 30mm; border: 1px dashed #666; margin: 5px auto; text-align: center; line-height: 30mm; color: #666; }
+        .internal { border: 1px solid #000; padding: 2px; text-align: center; font-weight: bold; margin: 3px 0; font-size: 8px; }
+    </style>
+    <style th:if="${cfg.customCss != null}" th:utext="${cfg.customCss}"></style>
+</head>
+<body>
+<div class="center">
+    <img th:if="${cfg.showLogo and cfg.logoUrl != null}" th:src="${cfg.logoUrl}" alt="logo"
+         style="max-height:44px;max-width:70%;display:block;margin:0 auto 3px;"/>
+    <div class="name" th:if="${cfg.showLogo}" th:text="${doc.company.nombreComercial}">Negocio</div>
+    <div class="muted" th:if="${doc.company.ruc != null}" th:text="'RUC ' + ${doc.company.ruc}">RUC</div>
+    <div class="muted" th:text="${doc.company.direccionFiscal != null ? doc.company.direccionFiscal : doc.company.direccionSucursal}">Direccion</div>
+    <div class="type" th:text="${doc.meta.documentTypeLabel}">TIPO</div>
+    <div class="b" th:text="${doc.meta.fullNumber}">Serie-Num</div>
+    <div class="internal" th:if="${cfg.internalDocument}">SIN VALOR TRIBUTARIO</div>
+</div>
+
+<div class="line"></div>
+<div class="muted" th:text="'Fecha: ' + ${doc.meta.issueDate}">Fecha</div>
+<div class="muted">Cli: <span th:text="${doc.customer != null ? doc.customer.name : 'Publico general'}">Cliente</span></div>
+<div class="muted" th:if="${doc.customer != null and doc.customer.docNumber != null}"
+     th:text="${doc.customer.docType} + ': ' + ${doc.customer.docNumber}">Doc</div>
+
+<div class="line"></div>
+<table>
+    <tr th:each="item : ${doc.items}">
+        <td>
+            <div th:text="${item.description}">Item</div>
+            <div class="muted" th:text="${#numbers.formatDecimal(item.quantity,1,2)} + ' x ' + ${#numbers.formatDecimal(item.unitPrice,1,2)}">1 x 0.00</div>
+        </td>
+        <td class="num b" th:text="${#numbers.formatDecimal(item.total,1,2)}">0.00</td>
+    </tr>
+</table>
+
+<div class="line"></div>
+<table>
+    <tr><td>IGV</td><td class="num" th:text="${#numbers.formatDecimal(doc.totals.igv,1,2)}">0.00</td></tr>
+    <tr class="grand"><td>TOTAL</td><td class="num" th:text="${doc.meta.currencySymbol} + ' ' + ${#numbers.formatDecimal(doc.totals.total,1,2)}">0.00</td></tr>
+</table>
+
+<div class="qr" th:if="${cfg.showQr}">QR</div>
+<div class="line"></div>
+<div class="center muted" th:text="${cfg.legalMessage}">Legal</div>
+<div class="center b" th:text="${cfg.thankYouMessage}">Gracias</div>
+<!-- TODO SUNAT: QR y hash del comprobante electronico -->
+</body>
+</html>

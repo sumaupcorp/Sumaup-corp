@@ -1,0 +1,31 @@
+# Build
+target/
+*.class
+build/
+
+# IDE
+.idea/
+*.iml
+.vscode/
+.settings/
+.project
+.classpath
+
+# Spring local config y secretos
+src/main/resources/application-local.yml
+application-local.yml
+*-secret.yml
+*-secrets.yml
+
+# Firebase service account (NUNCA versionar)
+firebase-service-account.json
+**/firebase-service-account*.json
+*firebase*adminsdk*.json
+
+# Variables de entorno
+.env
+.env.*
+
+# Logs y temporales
+*.log
+logs/

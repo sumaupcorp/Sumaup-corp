@@ -1,0 +1,117 @@
+# Configuracion base de SUMAUP360 backend (perfil por defecto: desarrollo local).
+# NO incluir secretos reales aqui. Para credenciales usar application-local.yml
+# (ignorado por git) o variables de entorno.
+
+spring:
+  application:
+    name: sumaup360-backend
+
+  datasource:
+    # PostgreSQL local. Sobrescribir con variables de entorno en otros entornos.
+    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:sumaup360_db}
+    username: ${DB_USER:postgres}
+    password: ${DB_PASSWORD:postgres}
+    driver-class-name: org.postgresql.Driver
+
+  jpa:
+    # La estructura la crea Flyway; JPA solo valida que el modelo coincida.
+    hibernate:
+      ddl-auto: validate
+    open-in-view: false
+    properties:
+      hibernate:
+        format_sql: true
+        # default_schema no se fija: cada entidad declara su schema (auth, app, erp, ...).
+    show-sql: false
+
+  flyway:
+    enabled: true
+    # Schemas por dominio gestionados por Flyway. El primero contiene la tabla de historial.
+    schemas:
+      - auth
+      - tenant
+      - app
+      - erp
+      - billing
+      - audit
+      - chatbot
+      - catalog
+      - notification
+    locations: classpath:db/migration
+    baseline-on-migrate: true
+
+server:
+  port: ${SERVER_PORT:8080}
+
+# Documentacion OpenAPI / Swagger UI habilitada.
+springdoc:
+  api-docs:
+    enabled: true
+    path: /v3/api-docs
+  swagger-ui:
+    enabled: true
+    path: /swagger-ui.html
+
+# Integracion con Firebase Admin SDK.
+# Ruta al JSON de service account; se inyecta por variable de entorno (no versionar el archivo).
+firebase:
+  service-account: ${FIREBASE_SERVICE_ACCOUNT:./firebase-service-account.json}
+  # project-id opcional; normalmente se infiere del service account.
+  project-id: ${FIREBASE_PROJECT_ID:}
+  # Web API key (NO secreta, va embebida en apps web). Se usa para crear cuentas de staff
+  # via la API REST de Firebase (alta interna desde el Backoffice).
+  web-api-key: ${FIREBASE_WEB_API_KEY:AIzaSyApS-7hHNpoSKI7JKHClT7oVSWEKnZ6f60}
+  # Bucket de Firebase Storage para adjuntos (recibos). Los signed URL se firman localmente.
+  storage-bucket: ${FIREBASE_STORAGE_BUCKET:sumaup-dev.firebasestorage.app}
+
+# Parametros de seguridad / JWT propios del backend (la sesion efectiva la emite el backend,
+# no Firebase). Valores reales por variable de entorno.
+security:
+  # Modo desarrollo: si Firebase no esta configurado y dev-mode=true, se acepta el header
+  # X-Debug-Uid para simular un usuario. NUNCA activar en produccion (override por env).
+  dev-mode: ${SECURITY_DEV_MODE:true}
+  # En dev, el uid que coincida con este valor se provisiona como STAFF admin (bootstrap).
+  bootstrap-admin-uid: ${BOOTSTRAP_ADMIN_UID:dev-admin}
+  jwt:
+    issuer: sumaup360-backend
+    # Secreto SOLO de ejemplo; reemplazar por variable de entorno en cualquier entorno real.
+    secret: ${JWT_SECRET:cambia-este-secreto-en-local-y-produccion}
+    expiration-minutes: ${JWT_EXPIRATION_MINUTES:60}
+
+# Anti-abuso de los endpoints publicos (QR taxista y reserva de citas).
+public-endpoints:
+  # Confiar en X-Forwarded-For SOLO detras de un proxy propio (produccion). En local/expuesto
+  # directo debe ser false: el header se puede falsificar y anula el rate-limit por IP.
+  trust-forwarded-headers: ${TRUST_FORWARDED_HEADERS:false}
+  # Topes diarios por token publico. Cuando exista la membresia por segmento, el valor
+  # efectivo debera venir del plan del dueño del token; estos quedan como techo global.
+  booking-daily-limit: ${BOOKING_DAILY_LIMIT:100}
+  qr-daily-limit: ${QR_DAILY_LIMIT:100}
+
+# Microservicio de consulta RUC (sumaup360-sunat).
+sunat:
+  enabled: ${SUNAT_ENABLED:true}
+  base-url: ${SUNAT_BASE_URL:http://localhost:8090}
+  api-key: ${SUNAT_API_KEY:}
+
+# Proveedor de IA a usar: openai | gemini (por defecto openai; si falla, usa el otro de respaldo).
+ai:
+  provider: ${AI_PROVIDER:openai}
+
+# OpenAI (GPT). Chat y diagnostico. Sin api-key, cae al respaldo (gemini) o al generador de reglas.
+openai:
+  enabled: ${OPENAI_ENABLED:true}
+  api-key: ${OPENAI_API_KEY:}
+  model: ${OPENAI_MODEL:gpt-4o-mini}
+  base-url: ${OPENAI_BASE_URL:https://api.openai.com/v1}
+
+# IA conversacional (Google Gemini). Respaldo si OpenAI no responde.
+gemini:
+  enabled: ${GEMINI_ENABLED:true}
+  api-key: ${GEMINI_API_KEY:}
+  model: ${GEMINI_MODEL:gemini-2.0-flash}
+
+logging:
+  level:
+    root: INFO
+    com.sumaup360: DEBUG

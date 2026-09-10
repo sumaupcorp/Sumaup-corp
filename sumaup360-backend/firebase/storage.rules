@@ -1,0 +1,108 @@
+rules_version = '2';
+
+// Reglas de Firebase Storage para SUMAUP360 (bucket privado).
+//
+// Modelo:
+// - La app movil (usuario persona) SUBE su propio comprobante a receipts/{userId}/...
+// - El Backoffice NO lee con estas reglas: lee con signed URLs generados por el backend
+//   (service account), que evitan estas reglas. Por eso aqui NO damos lectura a clientes.
+//
+// Desplegar:  firebase deploy --only storage   (con firebase.json apuntando a este archivo)
+
+service firebase.storage {
+  match /b/{bucket}/o {
+
+    // Comprobantes: cada usuario sube/gestiona SOLO los suyos. Sin lectura publica.
+    match /receipts/{userId}/{allPaths=**} {
+      allow write: if request.auth != null
+                   && request.auth.uid == userId
+                   && request.resource.size < 10 * 1024 * 1024            // max 10MB
+                   && request.resource.contentType.matches('image/.*|application/pdf');
+      allow read: if false;   // el Backoffice lee via signed URL (backend)
+    }
+
+    // Comprobantes emitidos por el STAFF (Backoffice → Solicitudes): el staff sube el PDF
+    // directamente desde el navegador (autenticado en Firebase) a comprobantes/{requestId}/...
+    // y luego comparte el download URL tokenizado con el cliente por WhatsApp (ese link no
+    // requiere auth: el token de descarga omite estas reglas para la lectura).
+    // Nota: el backend aun no setea un custom claim de staff, por eso se autoriza a cualquier
+    // usuario autenticado. Cuando exista el claim (p.ej. request.auth.token.staff == true),
+    // endurecer aqui la condicion.
+    match /comprobantes/{allPaths=**} {
+      allow write: if request.auth != null
+                   && request.resource.size < 10 * 1024 * 1024            // max 10MB
+                   && request.resource.contentType.matches('image/.*|application/pdf');
+      allow read: if request.auth != null;   // el cliente final usa el download URL tokenizado
+    }
+
+    // Reportes Peya: la app movil sube el PDF mensual de ventas a peya/{userId}/...
+    // El backoffice lo abre con el download URL tokenizado guardado en la BD.
+    match /peya/{userId}/{allPaths=**} {
+      allow write: if request.auth != null
+                   && request.auth.uid == userId
+                   && request.resource.size < 10 * 1024 * 1024            // max 10MB
+                   && request.resource.contentType.matches('application/pdf');
+      allow read: if request.auth != null && request.auth.uid == userId;
+    }
+
+    // Logo de la pagina publica de reservas (SaaS → Citas): el negocio sube su logo
+    // desde el panel (autenticado en Firebase) a booking/{companyId}/... La web publica
+    // de reservas lo muestra con el download URL tokenizado (la lectura por token omite
+    // estas reglas). Igual que comprobantes/: sin custom claim de tenant todavia, se
+    // autoriza a cualquier usuario autenticado; endurecer cuando exista el claim.
+    match /booking/{allPaths=**} {
+      allow write: if request.auth != null
+                   && request.resource.size < 5 * 1024 * 1024             // max 5MB
+                   && request.resource.contentType.matches('image/.*');
+      allow read: if request.auth != null;
+    }
+
+    // Catalogo maestro de productos (Backoffice → Catalogo): el staff sube la foto
+    // canonica del producto (una por producto, todos los tenants la heredan por URL).
+    // Solo imagenes, max 5MB. La lectura va por download URL tokenizado.
+    match /catalog/{allPaths=**} {
+      allow write: if request.auth != null
+                   && request.resource.size < 5 * 1024 * 1024
+                   && request.resource.contentType.matches('image/.*');
+      allow read: if request.auth != null;
+    }
+
+    // Fotos propias de productos del negocio (SaaS → Productos): cuando el producto no
+    // esta en el catalogo maestro, el negocio sube su propia foto a products/{tenantId}/...
+    // El dashboard y el POS la muestran con el download URL tokenizado. Sin custom claim
+    // de tenant todavia: cualquier usuario autenticado; endurecer cuando exista el claim.
+    match /products/{allPaths=**} {
+      allow write: if request.auth != null
+                   && request.resource.size < 5 * 1024 * 1024             // max 5MB
+                   && request.resource.contentType.matches('image/.*');
+      allow read: if request.auth != null;
+    }
+
+    // Fotos de pacientes/mascotas (SaaS → Pacientes): el trabajador del negocio sube
+    // la foto desde el panel (autenticado en Firebase) a patients/{tenantId}/... El
+    // dashboard la muestra con el download URL tokenizado. Igual que booking/: sin
+    // custom claim de tenant todavia, se autoriza a cualquier usuario autenticado;
+    // endurecer cuando exista el claim.
+    match /patients/{allPaths=**} {
+      allow write: if request.auth != null
+                   && request.resource.size < 5 * 1024 * 1024             // max 5MB
+                   && request.resource.contentType.matches('image/.*');
+      allow read: if request.auth != null;
+    }
+
+    // Foto de perfil: cada usuario sube/lee SOLO la suya. La app la muestra con el
+    // download URL tokenizado (getDownloadURL). Solo imagenes, max 5MB.
+    match /profile/{userId}/{allPaths=**} {
+      allow write: if request.auth != null
+                   && request.auth.uid == userId
+                   && request.resource.size < 5 * 1024 * 1024             // max 5MB
+                   && request.resource.contentType.matches('image/.*');
+      allow read: if request.auth != null && request.auth.uid == userId;
+    }
+
+    // Todo lo demas, denegado.
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}

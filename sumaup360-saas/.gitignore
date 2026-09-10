@@ -1,0 +1,41 @@
+# dependencias
+/node_modules
+/.pnp
+.pnp.*
+
+# build / output
+/.next/
+/out/
+/build
+/dist
+
+# entorno (nunca commitear credenciales ni service accounts)
+.env
+.env.*
+!.env.example
+*firebase*adminsdk*.json
+serviceAccount*.json
+
+# testing / coverage
+/coverage
+
+# logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# caché y sistema
+.cache/
+.turbo/
+.DS_Store
+Thumbs.db
+
+# tipos generados de Next
+next-env.d.ts
+*.tsbuildinfo
+
+# editor
+.vscode/*
+!.vscode/extensions.json
+.idea/

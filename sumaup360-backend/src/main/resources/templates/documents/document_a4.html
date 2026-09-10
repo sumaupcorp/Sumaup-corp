@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="es">
+<head>
+    <meta charset="UTF-8"/>
+    <title th:text="${doc.meta.fullNumber}">Documento</title>
+    <style th:inline="text">
+        @page { size: A4; margin: 1.5cm; }
+        * { box-sizing: border-box; }
+        body { font-family: [[${cfg.fontFamily}]]; color: #1f2937; font-size: 11px; }
+        .doc { width: 100%; }
+        .header { display: flex; justify-content: space-between; border-bottom: 3px solid [[${cfg.primaryColor}]]; padding-bottom: 10px; }
+        .brand { max-width: 60%; }
+        .logo-box { width: 120px; height: 60px; border: 1px dashed [[${cfg.secondaryColor}]]; color: [[${cfg.secondaryColor}]]; text-align: center; line-height: 60px; font-weight: bold; font-size: 13px; }
+        .brand h1 { color: [[${cfg.secondaryColor}]]; font-size: 18px; margin: 0 0 4px 0; }
+        .brand .legal { color: #6b7280; margin: 1px 0; }
+        .doc-box { border: 2px solid [[${cfg.primaryColor}]]; border-radius: 8px; padding: 10px 16px; text-align: center; min-width: 200px; }
+        .doc-box .ruc { font-weight: bold; color: [[${cfg.secondaryColor}]]; }
+        .doc-box .type { color: [[${cfg.primaryColor}]]; font-weight: bold; font-size: 14px; margin: 4px 0; }
+        .doc-box .num { font-size: 15px; font-weight: bold; }
+        .internal-banner { margin-top: 8px; background: #fff7ed; color: #c2410c; border: 1px solid #fdba74; padding: 6px 10px; border-radius: 6px; text-align: center; font-weight: bold; }
+        .meta { display: flex; justify-content: space-between; margin-top: 14px; gap: 16px; }
+        .meta .block { width: 50%; }
+        .meta .label { color: #6b7280; }
+        .section-title { color: [[${cfg.secondaryColor}]]; font-weight: bold; border-bottom: 1px solid #e5e7eb; padding-bottom: 3px; margin: 14px 0 6px 0; }
+        table.items { width: 100%; border-collapse: collapse; margin-top: 8px; }
+        table.items th { background: [[${cfg.primaryColor}]]; color: #fff; padding: 6px; text-align: left; font-size: 10px; }
+        table.items td { padding: 6px; border-bottom: 1px solid #e5e7eb; vertical-align: top; }
+        table.items td.num, table.items th.num { text-align: right; }
+        .extra { color: #6b7280; font-size: 9px; }
+        .totals { width: 45%; margin-left: 55%; margin-top: 10px; }
+        .totals td { padding: 4px 6px; }
+        .totals td.num { text-align: right; }
+        .totals .grand { font-size: 14px; font-weight: bold; color: [[${cfg.secondaryColor}]]; border-top: 2px solid [[${cfg.primaryColor}]]; }
+        .words { margin-top: 8px; font-style: italic; color: #374151; }
+        .footer { margin-top: 20px; border-top: 1px solid #e5e7eb; padding-top: 10px; color: #4b5563; }
+        .footer .qr { float: right; width: 80px; height: 80px; border: 1px dashed #9ca3af; text-align: center; line-height: 80px; color: #9ca3af; }
+        .footer .legal { color: #6b7280; font-size: 9px; }
+        .thanks { text-align: center; margin-top: 12px; font-weight: bold; color: [[${cfg.primaryColor}]]; }
+        .biz-block { margin-top: 10px; background: #f8fafc; border: 1px solid #e5e7eb; border-radius: 6px; padding: 8px 12px; }
+    </style>
+    <style th:if="${cfg.customCss != null}" th:utext="${cfg.customCss}"></style>
+</head>
+<body>
+<div class="doc">
+    <div class="header">
+        <div class="brand">
+            <!-- Logo: primero el configurado en la plantilla (subido por el negocio),
+                 si no, el que venga en los datos del documento. Acepta URL o data URI. -->
+            <div th:with="logo=${cfg.logoUrl != null ? cfg.logoUrl : doc.company.logoUrl}">
+                <div th:if="${cfg.showLogo and logo != null}">
+                    <img th:src="${logo}" alt="logo" style="max-height:60px;"/>
+                </div>
+                <div class="logo-box" th:if="${cfg.showLogo and logo == null}"
+                     th:text="${doc.company.nombreComercial}">LOGO</div>
+            </div>
+            <h1 th:text="${doc.company.nombreComercial}">Nombre comercial</h1>
+            <p class="legal" th:text="${doc.company.razonSocial}">Razon social</p>
+            <p class="legal" th:text="${doc.company.direccionFiscal}">Direccion fiscal</p>
+            <p class="legal" th:if="${doc.company.direccionSucursal}" th:text="${doc.company.direccionSucursal}">Sucursal</p>
+            <p class="legal">
+                <span th:if="${doc.company.telefono}" th:text="'Tel: ' + ${doc.company.telefono}">Tel</span>
+                <span th:if="${doc.company.email}" th:text="' | ' + ${doc.company.email}">Email</span>
+            </p>
+        </div>
+        <div>
+            <div class="doc-box">
+                <div class="ruc" th:if="${doc.company.ruc != null}" th:text="'RUC ' + ${doc.company.ruc}">RUC</div>
+                <div class="type" th:text="${doc.meta.documentTypeLabel}">TIPO</div>
+                <div class="num" th:text="${doc.meta.fullNumber}">Serie-Numero</div>
+            </div>
+            <div class="internal-banner" th:if="${cfg.internalDocument}">DOCUMENTO INTERNO - SIN VALOR TRIBUTARIO</div>
+        </div>
+    </div>
+
+    <div class="meta">
+        <div class="block">
+            <div class="section-title">Cliente</div>
+            <div><span class="label">Nombre: </span><span th:text="${doc.customer != null ? doc.customer.name : 'Publico general'}">Cliente</span></div>
+            <div th:if="${doc.customer != null and doc.customer.docNumber != null}"><span class="label" th:text="${doc.customer.docType} + ': '">Doc: </span><span th:text="${doc.customer.docNumber}">000</span></div>
+            <div th:if="${cfg.showCustomerAddress and doc.customer != null and doc.customer.address != null}"><span class="label">Direccion: </span><span th:text="${doc.customer.address}">Dir</span></div>
+        </div>
+        <div class="block">
+            <div class="section-title">Emision</div>
+            <div><span class="label">Fecha: </span><span th:text="${doc.meta.issueDate}">Fecha</span></div>
+            <div><span class="label">Moneda: </span><span th:text="${doc.meta.currencyCode}">PEN</span></div>
+            <div th:if="${cfg.showPaymentInfo and doc.meta.paymentMethod != null}"><span class="label">Forma de pago: </span><span th:text="${doc.meta.paymentMethod}">Pago</span></div>
+            <div th:if="${cfg.showSeller and doc.meta.cashier != null}"><span class="label">Cajero/Vendedor: </span><span th:text="${doc.meta.cashier}">Cajero</span></div>
+        </div>
+    </div>
+
+    <!-- Bloques opcionales por rubro -->
+    <div class="biz-block" th:if="${cfg.showBusinessExtraFields and doc.restaurant != null}">
+        <strong>Restaurante:</strong>
+        <span th:if="${doc.restaurant.table}" th:text="'Mesa: ' + ${doc.restaurant.table}"></span>
+        <span th:if="${doc.restaurant.waiter}" th:text="' | Mozo: ' + ${doc.restaurant.waiter}"></span>
+        <span th:if="${doc.restaurant.room}" th:text="' | Salon: ' + ${doc.restaurant.room}"></span>
+        <span th:if="${doc.restaurant.order}" th:text="' | Comanda: ' + ${doc.restaurant.order}"></span>
+        <span th:if="${doc.restaurant.attentionTime}" th:text="' | Tiempo: ' + ${doc.restaurant.attentionTime}"></span>
+    </div>
+    <div class="biz-block" th:if="${cfg.showBusinessExtraFields and doc.hardware != null}">
+        <strong>Ferreteria:</strong> <span th:text="'Almacen: ' + ${doc.hardware.warehouse}"></span>
+    </div>
+    <div class="biz-block" th:if="${cfg.showBusinessExtraFields and doc.pharmacy != null}">
+        <strong>Farmacia/Botica:</strong> <span th:text="'Responsable: ' + ${doc.pharmacy.saleResponsible}"></span>
+    </div>
+    <div class="biz-block" th:if="${cfg.showBusinessExtraFields and doc.delivery != null}">
+        <strong>Delivery:</strong>
+        <span th:if="${doc.delivery.deliveryAddress}" th:text="'Entrega: ' + ${doc.delivery.deliveryAddress}"></span>
+        <span th:if="${doc.delivery.courier}" th:text="' | Repartidor: ' + ${doc.delivery.courier}"></span>
+        <span th:if="${doc.delivery.deliveryMethod}" th:text="' | Metodo: ' + ${doc.delivery.deliveryMethod}"></span>
+    </div>
+
+    <div class="section-title">Detalle</div>
+    <table class="items">
+        <thead>
+        <tr>
+            <th>Codigo</th>
+            <th>Descripcion</th>
+            <th>Und</th>
+            <th class="num">Cant.</th>
+            <th class="num">P. Unit</th>
+            <th class="num">Dscto</th>
+            <th class="num">Total</th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr th:each="item : ${doc.items}">
+            <td th:text="${item.code}">P001</td>
+            <td>
+                <span th:text="${item.description}">Descripcion</span>
+                <div class="extra" th:if="${cfg.showBusinessExtraFields}">
+                    <span th:if="${item.sku}" th:text="'SKU: ' + ${item.sku}"></span>
+                    <span th:if="${item.brand}" th:text="' | Marca: ' + ${item.brand}"></span>
+                    <span th:if="${item.batch}" th:text="' | Lote: ' + ${item.batch}"></span>
+                    <span th:if="${item.expiryDate}" th:text="' | Vence: ' + ${item.expiryDate}"></span>
+                </div>
+            </td>
+            <td th:text="${item.unit}">UND</td>
+            <td class="num" th:text="${#numbers.formatDecimal(item.quantity,1,2)}">1</td>
+            <td class="num" th:text="${#numbers.formatDecimal(item.unitPrice,1,2)}">0.00</td>
+            <td class="num" th:text="${item.discount != null ? #numbers.formatDecimal(item.discount,1,2) : '0.00'}">0.00</td>
+            <td class="num" th:text="${#numbers.formatDecimal(item.total,1,2)}">0.00</td>
+        </tr>
+        </tbody>
+    </table>
+
+    <table class="totals">
+        <tr><td>Subtotal</td><td class="num" th:text="${doc.meta.currencySymbol} + ' ' + ${#numbers.formatDecimal(doc.totals.subtotal,1,2)}">S/ 0.00</td></tr>
+        <tr th:if="${doc.totals.discountTotal != null}"><td>Descuento</td><td class="num" th:text="${doc.meta.currencySymbol} + ' ' + ${#numbers.formatDecimal(doc.totals.discountTotal,1,2)}">S/ 0.00</td></tr>
+        <tr><td>IGV (18%)</td><td class="num" th:text="${doc.meta.currencySymbol} + ' ' + ${#numbers.formatDecimal(doc.totals.igv,1,2)}">S/ 0.00</td></tr>
+        <tr class="grand"><td>TOTAL</td><td class="num" th:text="${doc.meta.currencySymbol} + ' ' + ${#numbers.formatDecimal(doc.totals.total,1,2)}">S/ 0.00</td></tr>
+    </table>
+    <div class="words" th:if="${doc.totals.amountInWords}" th:text="${doc.totals.amountInWords}">SON: ...</div>
+
+    <div class="footer">
+        <div class="qr" th:if="${cfg.showQr}">QR</div>
+        <div th:if="${doc.meta.observations}"><strong>Observaciones: </strong><span th:text="${doc.meta.observations}">Obs</span></div>
+        <div th:if="${cfg.commercialMessage != null and !cfg.commercialMessage.isEmpty()}" th:text="${cfg.commercialMessage}">Mensaje comercial</div>
+        <p class="legal" th:text="${cfg.legalMessage}">Mensaje legal</p>
+        <!-- TODO SUNAT: hash y valor QR del comprobante electronico -->
+        <p class="legal" th:if="${!cfg.internalDocument}">Hash: (pendiente integracion SUNAT)</p>
+        <div class="thanks" th:text="${cfg.thankYouMessage}">Gracias</div>
+    </div>
+</div>
+</body>
+</html>

@@ -1,0 +1,5 @@
+flask==3.0.3
+# Playwright 1.49+ trae greenlet 3.1.1, con wheels para Python 3.13.
+playwright==1.49.1
+requests==2.32.3
+python-dotenv==1.0.1

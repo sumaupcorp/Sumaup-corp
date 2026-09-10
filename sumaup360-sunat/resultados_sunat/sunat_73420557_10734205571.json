@@ -1,0 +1,51 @@
+{
+  "ok": true,
+  "modo": "documento",
+  "numero_consultado": "73420557",
+  "tipo_documento": "1",
+  "tipo_documento_nombre": "Documento Nacional de Identidad",
+  "rucs_encontrados": [
+    {
+      "ruc": "10734205571",
+      "razon_social": "ROMERO CACHA RICHAR VARONI",
+      "ubicacion": "LIMA",
+      "estado": "ACTIVO",
+      "texto_completo": "RUC: 10734205571 ROMERO CACHA RICHAR VARONI Ubicación: LIMA Estado: ACTIVO"
+    }
+  ],
+  "ruc_seleccionado": {
+    "ruc": "10734205571",
+    "razon_social": "ROMERO CACHA RICHAR VARONI",
+    "ubicacion": "LIMA",
+    "estado": "ACTIVO",
+    "texto_completo": "RUC: 10734205571 ROMERO CACHA RICHAR VARONI Ubicación: LIMA Estado: ACTIVO"
+  },
+  "detalle": {
+    "numero_ruc": "10734205571 - ROMERO CACHA RICHAR VARONI",
+    "tipo_contribuyente": "PERSONA NATURAL CON NEGOCIO",
+    "tipo_de_documento": "DNI 73420557 - ROMERO CACHA, RICHAR VARONI",
+    "nombre_comercial": "-",
+    "estado_contribuyente": "ACTIVO",
+    "condicion_contribuyente": "HABIDO",
+    "domicilio_fiscal": "-",
+    "sistema_contabilidad": "MANUAL",
+    "actividades_economicas": [
+      "Principal - 6201 - PROGRAMACIÓN INFORMÁTICA"
+    ],
+    "comprobantes_pago": [
+      "NINGUNO"
+    ],
+    "sistema_emision_electronica": [
+      "RECIBOS POR HONORARIOS AFILIADO DESDE 13/09/2025"
+    ],
+    "emisor_electronico_desde": "13/09/2025",
+    "comprobantes_electronicos": "RECIBO POR HONORARIO (desde 13/09/2025)",
+    "afiliado_ple_desde": "-",
+    "padrones": [
+      "NINGUNO"
+    ],
+    "ruc": "10734205571",
+    "razon_social": "ROMERO CACHA RICHAR VARONI",
+    "consultado_en": "2026-06-29T19:22:18"
+  }
+}

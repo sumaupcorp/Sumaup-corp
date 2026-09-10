@@ -1,0 +1,86 @@
+name: sumaup360_app
+description: App movil de la Linea Personas de SUMAUP360 (personas naturales e independientes).
+publish_to: "none"
+version: 0.1.0+1
+
+environment:
+  sdk: ">=3.4.0 <4.0.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # Estado y arquitectura
+  flutter_riverpod: ^2.5.1        # gestion de estado (providers/notifiers)
+
+  # Navegacion
+  go_router: ^14.2.0              # routing declarativo
+
+  # Red / HTTP
+  dio: ^5.5.0                     # cliente HTTP + interceptor Bearer idToken
+
+  # Modelos / serializacion (anotaciones; generadores en dev_dependencies)
+  freezed_annotation: ^2.4.4
+  json_annotation: ^4.9.0
+
+  # Almacenamiento seguro de tokens
+  flutter_secure_storage: ^9.2.2
+
+  # Identidad (Firebase)
+  firebase_core: ^3.3.0
+  firebase_auth: ^5.1.4
+  firebase_storage: ^12.1.3      # subida de comprobantes (boletas/facturas)
+  firebase_messaging: ^15.1.0    # notificaciones push (permiso en el onboarding)
+  google_sign_in: ^6.2.1         # login con Google
+
+  # Multimedia / archivos (subida de comprobantes)
+  image_picker: ^1.1.2
+  file_picker: ^8.0.6
+
+  # Utilidades
+  intl: ^0.19.0                   # formato de fechas/monedas (es_PE)
+  fl_chart: ^0.69.0               # graficos simples (estadisticas)
+  cached_network_image: ^3.4.0    # imagenes remotas con cache
+  flutter_svg: ^2.0.10            # iconos SVG (marcas Google/Apple en login)
+  hugeicons: ^1.1.7               # set de iconos principal (Hugeicons)
+  country_flags: ^4.1.2
+  qr_flutter: ^4.1.0
+  url_launcher: ^6.3.0            # abrir/descargar el PDF del comprobante en el navegador
+  syncfusion_flutter_pdfviewer: ^27.1.48  # previsualizacion embebida del PDF del comprobante
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+
+  # Generacion de codigo
+  build_runner: ^2.4.11
+  freezed: ^2.5.7
+  json_serializable: ^6.8.0
+
+  # Lints
+  flutter_lints: ^4.0.0
+
+flutter:
+  uses-material-design: true
+  assets:
+    - assets/suma/
+    - assets/images/
+    - assets/images/onboarding/
+    - assets/icons/
+
+  fonts:
+    - family: Manrope
+      fonts:
+        # Fuente variable oficial de Google Fonts (eje wght 200-800).
+        # Flutter mapea fontWeight (w400-w700) al eje variable.
+        - asset: assets/fonts/Manrope-variable.ttf
+    - family: Poppins
+      fonts:
+        - asset: assets/fonts/Poppins-Regular.ttf
+          weight: 400
+        - asset: assets/fonts/Poppins-Medium.ttf
+          weight: 500
+        - asset: assets/fonts/Poppins-SemiBold.ttf
+          weight: 600
+        - asset: assets/fonts/Poppins-Bold.ttf
+          weight: 700

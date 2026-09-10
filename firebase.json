@@ -1,0 +1,5 @@
+{
+  "storage": {
+    "rules": "sumaup360-backend/firebase/storage.rules"
+  }
+}

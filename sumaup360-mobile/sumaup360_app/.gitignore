@@ -1,0 +1,42 @@
+# Flutter / Dart
+.dart_tool/
+.packages
+.pub-cache/
+.pub/
+build/
+.flutter-plugins
+.flutter-plugins-dependencies
+doc/api/
+
+# Codigo generado (se regenera con build_runner; NO versionar)
+*.g.dart
+*.freezed.dart
+*.config.dart
+*.mocks.dart
+
+# IDE
+.idea/
+.vscode/
+*.iml
+*.ipr
+*.iws
+
+# Secrets y configuracion sensible (fuera de control de versiones)
+.env
+.env.*
+**/firebase_options.dart
+**/google-services.json
+**/GoogleService-Info.plist
+android/key.properties
+*.keystore
+*.jks
+
+# Plataforma / OS
+**/Pods/
+**/.symlinks/
+.DS_Store
+Thumbs.db
+
+# Coverage / logs
+coverage/
+*.log

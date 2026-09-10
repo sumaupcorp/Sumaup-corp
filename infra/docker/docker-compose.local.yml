@@ -1,0 +1,22 @@
+# PostgreSQL local para desarrollo de SUMAUP360.
+# Uso:  docker compose -f docker-compose.local.yml up -d
+# Opcional: si ya tienes PostgreSQL instalado en tu máquina, no necesitas esto.
+# Los schemas y tablas los crea el BACKEND con Flyway, no este compose.
+
+services:
+  postgres:
+    image: postgres:16
+    container_name: sumaup360-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: sumaup360_db
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - sumaup360_pgdata:/var/lib/postgresql/data
+      - ./postgres/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+
+volumes:
+  sumaup360_pgdata:
