@@ -1,0 +1,10 @@
+target/
+.git/
+.idea/
+*.iml
+firebase-service-account.json
+application-local.yml
+run-local.secrets.ps1
+*.log
+.env
+.env.*

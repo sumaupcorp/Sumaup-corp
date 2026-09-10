@@ -1,0 +1,27 @@
+# Caddy — reverse proxy + HTTPS automático (Let's Encrypt).
+# {$DOMAIN} y {$ACME_EMAIL} vienen del entorno (ver docker-compose.prod.yml / .env).
+#
+# Subdominios -> contenedores:
+#   api.DOMINIO   -> backend:8080
+#   app.DOMINIO   -> saas:3000
+#   staff.DOMINIO -> backoffice:3002
+# El sunat NO se expone: solo lo llama el backend por la red interna de docker.
+
+{
+	email {$ACME_EMAIL}
+}
+
+api.{$DOMAIN} {
+	encode gzip
+	reverse_proxy backend:8080
+}
+
+app.{$DOMAIN} {
+	encode gzip
+	reverse_proxy saas:3000
+}
+
+staff.{$DOMAIN} {
+	encode gzip
+	reverse_proxy backoffice:3002
+}

@@ -1,0 +1,133 @@
+# SUMAUP360 — Producción (VPS único con Docker Compose).
+# Levanta: Caddy (reverse proxy + HTTPS) · PostgreSQL · backend · sunat · saas · backoffice.
+#
+# Uso (desde infra/prod, en el VPS):
+#   1) cp .env.example .env   y completa TODO
+#   2) coloca el service account en ./secrets/firebase-service-account.json
+#   3) docker compose -f docker-compose.prod.yml up -d --build
+#
+# Los NEXT_PUBLIC_* se hornean al construir las imágenes de saas/backoffice.
+# Si cambias esas variables, reconstruye: docker compose ... up -d --build saas backoffice
+
+name: sumaup360
+
+services:
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      DOMAIN: ${DOMAIN}
+      ACME_EMAIL: ${ACME_EMAIL}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - backend
+      - saas
+      - backoffice
+
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${DB_NAME}
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER} -d ${DB_NAME}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  backend:
+    build:
+      context: ../../sumaup360-backend
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      # Base de datos (host = nombre del servicio docker)
+      DB_HOST: postgres
+      DB_PORT: "5432"
+      DB_NAME: ${DB_NAME}
+      DB_USER: ${DB_USER}
+      DB_PASSWORD: ${DB_PASSWORD}
+      SERVER_PORT: "8080"
+      # Firebase Admin (service account montado como volumen)
+      FIREBASE_SERVICE_ACCOUNT: /app/secrets/firebase-service-account.json
+      FIREBASE_PROJECT_ID: ${FIREBASE_PROJECT_ID}
+      FIREBASE_WEB_API_KEY: ${FIREBASE_WEB_API_KEY}
+      FIREBASE_STORAGE_BUCKET: ${FIREBASE_STORAGE_BUCKET}
+      # Seguridad — PRODUCCIÓN
+      SECURITY_DEV_MODE: "false"
+      BOOTSTRAP_ADMIN_UID: ${BOOTSTRAP_ADMIN_UID}
+      JWT_SECRET: ${JWT_SECRET}
+      TRUST_FORWARDED_HEADERS: "true"
+      SECURITY_CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS}
+      # Swagger apagado en prod
+      SPRINGDOC_API_DOCS_ENABLED: "false"
+      SPRINGDOC_SWAGGER_UI_ENABLED: "false"
+      # SUNAT (interno, por red docker)
+      SUNAT_ENABLED: "true"
+      SUNAT_BASE_URL: http://sunat:8090
+      SUNAT_API_KEY: ${SUNAT_API_KEY}
+      # IA
+      AI_PROVIDER: ${AI_PROVIDER}
+      OPENAI_API_KEY: ${OPENAI_API_KEY}
+      OPENAI_MODEL: ${OPENAI_MODEL}
+      GEMINI_API_KEY: ${GEMINI_API_KEY}
+    volumes:
+      - ./secrets/firebase-service-account.json:/app/secrets/firebase-service-account.json:ro
+
+  sunat:
+    build:
+      context: ../../sumaup360-sunat
+    restart: unless-stopped
+    environment:
+      SUNAT_PORT: "8090"
+      # Visible (bajo Xvfb en el contenedor) para pasar el WAF de SUNAT.
+      SUNAT_PLAYWRIGHT_HEADLESS: "false"
+      SUNAT_API_KEY: ${SUNAT_API_KEY}
+    # No se publica al exterior: solo el backend lo llama por la red interna.
+
+  saas:
+    build:
+      context: ../../sumaup360-saas
+      args:
+        NEXT_PUBLIC_API_BASE_URL: ${SAAS_API_BASE_URL}
+        NEXT_PUBLIC_FIREBASE_API_KEY: ${NEXT_PUBLIC_FIREBASE_API_KEY}
+        NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN: ${NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN}
+        NEXT_PUBLIC_FIREBASE_PROJECT_ID: ${NEXT_PUBLIC_FIREBASE_PROJECT_ID}
+        NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET: ${NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET}
+        NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID: ${NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID}
+        NEXT_PUBLIC_FIREBASE_APP_ID: ${NEXT_PUBLIC_FIREBASE_APP_ID}
+    restart: unless-stopped
+    depends_on:
+      - backend
+
+  backoffice:
+    build:
+      context: ../../sumaup360-backoffice
+      args:
+        NEXT_PUBLIC_API_BASE_URL: ${BACKOFFICE_API_BASE_URL}
+        NEXT_PUBLIC_FIREBASE_API_KEY: ${NEXT_PUBLIC_FIREBASE_API_KEY}
+        NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN: ${NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN}
+        NEXT_PUBLIC_FIREBASE_PROJECT_ID: ${NEXT_PUBLIC_FIREBASE_PROJECT_ID}
+        NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET: ${NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET}
+        NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID: ${NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID}
+        NEXT_PUBLIC_FIREBASE_APP_ID: ${NEXT_PUBLIC_FIREBASE_APP_ID}
+    restart: unless-stopped
+    depends_on:
+      - backend
+
+volumes:
+  pg_data:
+  caddy_data:
+  caddy_config:

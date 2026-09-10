@@ -3,6 +3,7 @@ package com.sumaup360.security;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.sumaup360.common.error.ApiError;
 import jakarta.servlet.http.HttpServletResponse;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpStatus;
@@ -36,6 +37,11 @@ public class SecurityConfig {
             "/swagger-ui.html"
     };
 
+    // Origenes permitidos para CORS (coma-separados). En local por defecto localhost;
+    // en produccion se inyecta con SECURITY_CORS_ALLOWED_ORIGINS (app/staff/landing).
+    @Value("${security.cors.allowed-origins:http://localhost:*,http://127.0.0.1:*}")
+    private String corsAllowedOrigins;
+
     private final FirebaseTokenFilter firebaseTokenFilter;
     private final ObjectMapper objectMapper;
 
@@ -68,8 +74,13 @@ public class SecurityConfig {
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration config = new CorsConfiguration();
-        // Origenes de desarrollo (landing, saas, backoffice). Restringir en produccion.
-        config.setAllowedOriginPatterns(List.of("http://localhost:*", "http://127.0.0.1:*"));
+        // Origenes configurables por entorno (coma-separados). Dev: localhost;
+        // Prod: dominios reales de landing, saas y backoffice.
+        List<String> origins = java.util.Arrays.stream(corsAllowedOrigins.split(","))
+                .map(String::trim)
+                .filter(s -> !s.isEmpty())
+                .toList();
+        config.setAllowedOriginPatterns(origins);
         config.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
         config.setAllowedHeaders(List.of("*"));
         config.setAllowCredentials(true);
