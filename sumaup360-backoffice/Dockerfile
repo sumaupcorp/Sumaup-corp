@@ -2,7 +2,8 @@
 FROM node:20-alpine AS deps
 WORKDIR /app
 COPY package.json package-lock.json ./
-RUN npm ci
+# npm install (no ci): el lock puede estar desincronizado; install lo reconcilia.
+RUN npm install --no-audit --no-fund
 
 # ---- Build ----
 FROM node:20-alpine AS build
