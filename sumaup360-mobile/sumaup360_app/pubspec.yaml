@@ -60,6 +60,19 @@ dev_dependencies:
   # Lints
   flutter_lints: ^4.0.0
 
+  # Generador de iconos de app (launcher) a partir de assets/suma/icono-app.png
+  flutter_launcher_icons: ^0.14.1
+
+# Configuracion del icono de la app (Suma "360"). Regenerar con:
+#   dart run flutter_launcher_icons
+flutter_launcher_icons:
+  android: true
+  ios: false
+  image_path: "assets/suma/icono-app.png"
+  min_sdk_android: 21
+  adaptive_icon_background: "#000000"
+  adaptive_icon_foreground: "assets/suma/icono-app.png"
+
 flutter:
   uses-material-design: true
   assets:
