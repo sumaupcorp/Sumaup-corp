@@ -42,6 +42,12 @@ public class SecurityConfig {
     @Value("${security.cors.allowed-origins:http://localhost:*,http://127.0.0.1:*}")
     private String corsAllowedOrigins;
 
+    // Origenes SIEMPRE permitidos, independientes del .env: el landing publico (QR del
+    // taxista) debe funcionar aunque la variable de entorno falte o quede mal configurada.
+    private static final List<String> ALWAYS_ALLOWED_ORIGINS = List.of(
+            "https://sumaup360.com",
+            "https://www.sumaup360.com");
+
     private final FirebaseTokenFilter firebaseTokenFilter;
     private final ObjectMapper objectMapper;
 
@@ -75,11 +81,14 @@ public class SecurityConfig {
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration config = new CorsConfiguration();
         // Origenes configurables por entorno (coma-separados). Dev: localhost;
-        // Prod: dominios reales de landing, saas y backoffice.
-        List<String> origins = java.util.Arrays.stream(corsAllowedOrigins.split(","))
+        // Prod: dominios reales de landing, saas y backoffice. A esto se le suman
+        // siempre los origenes del landing publico para que el QR nunca quede bloqueado.
+        List<String> origins = new java.util.ArrayList<>(ALWAYS_ALLOWED_ORIGINS);
+        java.util.Arrays.stream(corsAllowedOrigins.split(","))
                 .map(String::trim)
                 .filter(s -> !s.isEmpty())
-                .toList();
+                .filter(s -> !origins.contains(s))
+                .forEach(origins::add);
         config.setAllowedOriginPatterns(origins);
         config.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
         config.setAllowedHeaders(List.of("*"));

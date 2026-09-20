@@ -74,33 +74,6 @@ class _QrCard extends ConsumerWidget {
   const _QrCard({required this.token});
   final String token;
 
-  Future<void> _regenerate(BuildContext context, WidgetRef ref) async {
-    final ok = await showDialog<bool>(
-      context: context,
-      builder: (_) => AlertDialog(
-        title: const Text('Regenerar tu QR'),
-        content: const Text(
-            'Tu QR actual dejara de funcionar y tendras que compartir el nuevo. Continuar?'),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancelar')),
-          TextButton(onPressed: () => Navigator.pop(context, true), child: const Text('Regenerar')),
-        ],
-      ),
-    );
-    if (ok != true) return;
-    try {
-      await ref.read(taxiRepositoryProvider).regenerateQr();
-      ref.invalidate(qrTokenProvider);
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('QR regenerado.')));
-      }
-    } on AppException catch (e) {
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
-      }
-    }
-  }
-
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final url = Env.qrUrl(token);
@@ -126,24 +99,15 @@ class _QrCard extends ConsumerWidget {
                 : QrImageView(data: url, version: QrVersions.auto, size: 180),
           ),
           const SizedBox(height: AppSpacing.md),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              OutlinedButton.icon(
-                onPressed: () {
-                  Clipboard.setData(ClipboardData(text: url));
-                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Enlace copiado.')));
-                },
-                icon: const AppIcon('folder-share', size: 18, color: AppColors.primary),
-                label: const Text('Copiar enlace'),
-              ),
-              const SizedBox(width: AppSpacing.sm),
-              TextButton.icon(
-                onPressed: token.isEmpty ? null : () => _regenerate(context, ref),
-                icon: const AppIcon('history-toggle', size: 18, color: AppColors.muted),
-                label: const Text('Regenerar', style: TextStyle(color: AppColors.muted)),
-              ),
-            ],
+          Center(
+            child: OutlinedButton.icon(
+              onPressed: () {
+                Clipboard.setData(ClipboardData(text: url));
+                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Enlace copiado.')));
+              },
+              icon: const AppIcon('folder-share', size: 18, color: AppColors.primary),
+              label: const Text('Copiar enlace'),
+            ),
           ),
         ],
       ),
