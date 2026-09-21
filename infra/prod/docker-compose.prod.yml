@@ -83,6 +83,10 @@ services:
       OPENAI_API_KEY: ${OPENAI_API_KEY}
       OPENAI_MODEL: ${OPENAI_MODEL}
       GEMINI_API_KEY: ${GEMINI_API_KEY}
+      # Facturacion electronica NubeFact (fallback demo global; lo real va por empresa cifrado)
+      NUBEFACT_ENABLED: "true"
+      NUBEFACT_DEMO_RUTA: ${NUBEFACT_DEMO_RUTA}
+      NUBEFACT_DEMO_TOKEN: ${NUBEFACT_DEMO_TOKEN}
     volumes:
       - ./secrets/firebase-service-account.json:/app/secrets/firebase-service-account.json:ro
 
