@@ -27,6 +27,7 @@ import '../../profile/application/profile_providers.dart';
 import '../../profile/domain/profile_me.dart';
 import '../../peya/presentation/peya_screen.dart';
 import '../../taxi/presentation/comprobantes_screen.dart';
+import '../../taxi/presentation/corporativo_screen.dart';
 import '../../honorarios/presentation/servicios_screen.dart';
 import '../application/summary_providers.dart';
 
@@ -57,24 +58,31 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       'servicios' => ('notes', 'Servicios'),
       _ => ('receipt', 'Comprobantes'),
     };
-    final tabs = [
+    // El taxista no registra ingresos/gastos manualmente: su flujo de dinero es
+    // Corporativo (facturas a la central por carreras con tarjeta) + su QR de
+    // carreras directas. Por eso reemplazamos sus tabs Ingresos y Gastos por un
+    // unico tab Corporativo. Los demas segmentos conservan Ingresos y Gastos.
+    final bool isTaxi = kind == 'taxi';
+    final tabs = <Widget>[
       _HomeTab(onOpenProfile: () => context.push(Routes.account)),
-      const IncomeScreen(embedded: true),
-      const ExpenseScreen(embedded: true),
+      if (!isTaxi) const IncomeScreen(embedded: true),
+      if (isTaxi) const _CorporativoTab() else const ExpenseScreen(embedded: true),
       _ModuleTab(kind: kind),
       const ChatScreen(embedded: true),
     ];
     final navItems = <(String, String)>[
       ('home', 'Inicio'),
-      ('trending-up', 'Ingresos'),
-      ('trending-down', 'Gastos'),
+      if (!isTaxi) ('trending-up', 'Ingresos'),
+      if (isTaxi) ('receipt-tax', 'Corporativo') else ('trending-down', 'Gastos'),
       (moduleIcon, moduleLabel),
       ('help-small', 'Chat'),
     ];
+    // El numero de tabs cambia segun el segmento; evitamos un indice fuera de rango.
+    final int tab = _tab.clamp(0, tabs.length - 1);
     return Scaffold(
       backgroundColor: AppColors.surfaceAlt,
-      body: SafeArea(bottom: false, child: tabs[_tab]),
-      bottomNavigationBar: _FloatingNavBar(current: _tab, onTap: _goTab, items: navItems),
+      body: SafeArea(bottom: false, child: tabs[tab]),
+      bottomNavigationBar: _FloatingNavBar(current: tab, onTap: _goTab, items: navItems),
     );
   }
 }
@@ -787,9 +795,25 @@ class _ModuleTab extends ConsumerWidget {
       };
 }
 
+/// Tab Corporativo del taxista (Premium). Si no tiene acceso, muestra el upsell.
+/// Reusa la misma feature Premium que Comprobantes (TAXI_COMPROBANTES).
+class _CorporativoTab extends ConsumerWidget {
+  const _CorporativoTab();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final access = ref.watch(featureAccessProvider('TAXI_COMPROBANTES'));
+    return access.when(
+      loading: () => const Center(child: CircularProgressIndicator(color: AppColors.primary)),
+      error: (_, __) => const _LockedModule(kind: 'corporativo'),
+      data: (a) => a.allowed ? const CorporativoScreen(embedded: true) : const _LockedModule(kind: 'corporativo'),
+    );
+  }
+}
+
 class _LockedModule extends StatelessWidget {
   const _LockedModule({required this.kind});
-  final String kind; // 'taxi' | 'peya' | 'servicios'
+  final String kind; // 'taxi' | 'peya' | 'servicios' | 'corporativo'
 
   static const _gold = Color(0xFFF5C046);
   static const _indigo = Color(0xFF161A40);
@@ -808,6 +832,12 @@ class _LockedModule extends StatelessWidget {
           'Solicita tus recibos por honorarios y tramita tu suspension de 4ta sin complicaciones.',
           'S/ 14.90',
           const ['Recibos por honorarios', 'Suspension de 4ta anual', 'Tramite hecho por SUMAUP360', 'Historial de solicitudes', 'Alertas SUNAT'],
+        ),
+      'corporativo' => (
+          'Corporativo',
+          'Factura a tu central las carreras pagadas con tarjeta y gestiona tu QR de carreras directas en un solo lugar.',
+          'S/ 39.90',
+          const ['Facturas a la central por tus carreras', 'QR unico para carreras directas', 'Historial de facturas y pagos', 'Comprobantes ilimitados', 'Alertas SUNAT'],
         ),
       _ => (
           'Comprobantes',

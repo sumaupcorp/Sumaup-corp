@@ -1,6 +1,7 @@
 import 'package:dio/dio.dart';
 import '../../../core/errors/app_exception.dart';
 import '../domain/attachment.dart';
+import '../domain/corporate_ride.dart';
 import '../domain/receipt_request.dart';
 
 class TaxiRepository {
@@ -39,6 +40,27 @@ class TaxiRepository {
     try {
       final res = await _dio.get<List<dynamic>>('/app/taxi/requests/$id/attachments');
       return (res.data ?? []).map((e) => AttachmentModel.fromJson(e as Map<String, dynamic>)).toList();
+    } on DioException catch (e) {
+      throw AppException.fromDio(e);
+    }
+  }
+
+  // --- Corporativo: carreras pagadas con tarjeta que van directo a la empresa ---
+
+  /// Carreras corporativas del taxista (pendientes de facturar + historial).
+  Future<List<CorporateRide>> corporateRides() async {
+    try {
+      final res = await _dio.get<List<dynamic>>('/app/taxi/corporate/rides');
+      return (res.data ?? []).map((e) => CorporateRide.fromJson(e as Map<String, dynamic>)).toList();
+    } on DioException catch (e) {
+      throw AppException.fromDio(e);
+    }
+  }
+
+  /// Genera la factura del taxista hacia la empresa por las carreras seleccionadas.
+  Future<void> createCorporateInvoice(List<String> rideIds) async {
+    try {
+      await _dio.post<Map<String, dynamic>>('/app/taxi/corporate/invoices', data: {'rideIds': rideIds});
     } on DioException catch (e) {
       throw AppException.fromDio(e);
     }
