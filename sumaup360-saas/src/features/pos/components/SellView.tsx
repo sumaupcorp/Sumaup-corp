@@ -160,7 +160,7 @@ export function SellView({ branchId, products, canSell, canViewProducts, cashOpe
                   : "Aun no tienes productos. Crealos en la seccion Productos."}
             </p>
           ) : (
-            <div className="grid grid-cols-3 gap-2 sm:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6">
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
               {visibleProducts.map((p) => {
                 const inCart = cart.get(p.id) ?? 0;
                 const available = stockLoaded ? (stockMap.get(p.id) ?? 0) : null;
@@ -173,45 +173,45 @@ export function SellView({ branchId, products, canSell, canViewProducts, cashOpe
                     disabled={!canSell || noStock}
                     onClick={() => addToCart(p)}
                     className={
-                      "relative flex select-none flex-col items-center gap-1 rounded-xl border bg-white p-2 pb-1.5 text-center " +
-                      "transition touch-manipulation active:scale-95 disabled:cursor-default " +
+                      "relative flex select-none flex-col gap-2 rounded-2xl border bg-white p-2.5 text-center " +
+                      "transition touch-manipulation active:scale-[0.98] disabled:cursor-default " +
                       (noStock
-                        ? "border-red-300 bg-red-50/40"
+                        ? "border-red-200 bg-red-50/40"
                         : inCart > 0
-                          ? "border-primary shadow-sm"
-                          : "border-border hover:border-primary")
+                          ? "border-primary shadow-md ring-1 ring-primary/30"
+                          : "border-border shadow-sm hover:border-primary hover:shadow-md")
                     }
                   >
                     {inCart > 0 && !noStock && (
-                      <span className="absolute right-1.5 top-1.5 z-10 flex size-6 items-center justify-center rounded-full bg-primary text-xs font-bold text-primary-foreground">
+                      <span className="absolute right-2 top-2 z-10 flex size-7 items-center justify-center rounded-full bg-primary text-sm font-bold text-primary-foreground shadow">
                         {inCart}
                       </span>
                     )}
-                    <div className={noStock ? "opacity-50 grayscale" : undefined}>
+                    <div className={"w-full " + (noStock ? "opacity-50 grayscale" : "")}>
                       <ProductPhoto
                         externalUrl={p.photoExternalUrl}
                         uploadedUrl={p.photoUrl}
                         name={p.name}
-                        className="size-14"
+                        className="w-full aspect-square"
                       />
                     </div>
-                    <span className={"line-clamp-2 min-h-7 w-full text-[11px] font-medium leading-tight " +
-                      (noStock ? "text-muted-foreground" : "")}>
+                    <span className={"line-clamp-2 min-h-[2.5rem] w-full text-sm font-semibold leading-tight " +
+                      (noStock ? "text-muted-foreground" : "text-foreground")}>
                       {p.name}
                     </span>
                     {noStock ? (
-                      <span className="rounded-full bg-red-100 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-red-700">
+                      <span className="rounded-full bg-red-100 px-2.5 py-0.5 text-xs font-bold uppercase tracking-wide text-red-700">
                         Sin stock
                       </span>
                     ) : (
-                      <>
-                        <span className="text-sm font-bold text-primary">{fmt(p.price)}</span>
+                      <div className="mt-auto flex flex-col items-center">
+                        <span className="text-lg font-bold text-primary">{fmt(p.price)}</span>
                         {lowStock && (
-                          <span className="text-[10px] font-semibold text-amber-600">
+                          <span className="text-xs font-semibold text-amber-600">
                             Quedan {available}
                           </span>
                         )}
-                      </>
+                      </div>
                     )}
                   </button>
                 );
