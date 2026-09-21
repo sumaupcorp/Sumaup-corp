@@ -281,10 +281,15 @@ public class EinvoiceService {
     }
 
     private Creds resolveCreds(UUID tenantId, UUID companyId) {
+        String demoRuta = props.isEnabled() ? props.getDemoRuta() : null;
         Optional<CompanyEinvoicingConfig> cfg = configRepository.findByTenantIdAndCompanyId(tenantId, companyId);
         if (cfg.isPresent() && cfg.get().isEnabled()
                 && notBlank(cfg.get().getNubefactRuta()) && notBlank(cfg.get().getNubefactTokenEnc())) {
-            return new Creds(cfg.get().getNubefactRuta(), cryptoService.decrypt(cfg.get().getNubefactTokenEnc()), false);
+            String ruta = cfg.get().getNubefactRuta().trim();
+            // Aunque venga de la config por empresa, si la ruta es la del demo se trata como demo
+            // (la cuenta demo solo tiene registradas las series FFF1/BBB1).
+            boolean demo = notBlank(demoRuta) && demoRuta.trim().equals(ruta);
+            return new Creds(ruta, cryptoService.decrypt(cfg.get().getNubefactTokenEnc()), demo);
         }
         if (props.isEnabled() && notBlank(props.getDemoRuta()) && notBlank(props.getDemoToken())) {
             return new Creds(props.getDemoRuta(), props.getDemoToken(), true);
