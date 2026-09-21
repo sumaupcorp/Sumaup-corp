@@ -6,6 +6,11 @@ spring:
   application:
     name: sumaup360-backend
 
+  servlet:
+    multipart:
+      max-file-size: 6MB
+      max-request-size: 8MB
+
   datasource:
     # PostgreSQL local. Sobrescribir con variables de entorno en otros entornos.
     url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:sumaup360_db}
@@ -102,6 +107,13 @@ nubefact:
   enabled: ${NUBEFACT_ENABLED:true}
   demo-ruta: ${NUBEFACT_DEMO_RUTA:}
   demo-token: ${NUBEFACT_DEMO_TOKEN:}
+
+# Subida de archivos al servidor (fotos de producto). dir es la carpeta en disco;
+# public-base es la URL publica del backend (para armar el enlace del archivo).
+app:
+  uploads:
+    dir: ${APP_UPLOADS_DIR:uploads}
+    public-base: ${APP_UPLOADS_PUBLIC_BASE:}
 
 # Proveedor de IA a usar: openai | gemini (por defecto openai; si falla, usa el otro de respaldo).
 ai:

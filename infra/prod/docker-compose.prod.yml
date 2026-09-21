@@ -87,8 +87,12 @@ services:
       NUBEFACT_ENABLED: "true"
       NUBEFACT_DEMO_RUTA: ${NUBEFACT_DEMO_RUTA}
       NUBEFACT_DEMO_TOKEN: ${NUBEFACT_DEMO_TOKEN}
+      # Subida de imagenes al servidor (fotos de producto). Se sirven en api.<DOMAIN>/uploads.
+      APP_UPLOADS_DIR: /app/uploads
+      APP_UPLOADS_PUBLIC_BASE: ${SAAS_API_BASE_URL}
     volumes:
       - ./secrets/firebase-service-account.json:/app/secrets/firebase-service-account.json:ro
+      - uploads_data:/app/uploads
 
   sunat:
     build:
@@ -135,3 +139,4 @@ volumes:
   pg_data:
   caddy_data:
   caddy_config:
+  uploads_data:

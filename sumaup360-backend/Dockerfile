@@ -15,7 +15,9 @@ WORKDIR /app
 RUN groupadd -r app && useradd -r -g app app
 COPY --from=build /build/target/sumaup360-backend-*.jar app.jar
 # El service account de Firebase se monta como volumen en /app/secrets (ver compose).
-RUN mkdir -p /app/secrets && chown -R app:app /app
+# /app/uploads es el volumen de imagenes subidas (fotos de producto): debe existir y
+# pertenecer a 'app' para que el volumen herede esos permisos y el proceso pueda escribir.
+RUN mkdir -p /app/secrets /app/uploads && chown -R app:app /app
 USER app
 EXPOSE 8080
 ENTRYPOINT ["java","-XX:MaxRAMPercentage=75.0","-jar","/app/app.jar"]

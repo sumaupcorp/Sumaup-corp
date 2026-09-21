@@ -1,14 +1,13 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
-import { storage } from "@/lib/firebase";
+import { auth } from "@/lib/firebase";
 import {
   useProducts, useCreateProduct, useUpdateProduct, type Product,
 } from "@/features/products/api";
 import { useCatalogSearch, type CatalogProduct } from "@/features/catalog/api";
 import { useCompany } from "@/features/companies/company-context";
-import { useHasPermission, useSession } from "@/features/auth/session";
+import { useHasPermission } from "@/features/auth/session";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input, Label } from "@/components/ui/input";
@@ -16,6 +15,7 @@ import { PageHeader, Spinner, Badge } from "@/components/ui/misc";
 import { Paginator } from "@/components/ui/pagination";
 
 const PRODUCTS_PAGE_SIZE = 10;
+const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8080";
 
 export default function ProductsPage() {
   const hasPerm = useHasPermission();
@@ -547,14 +547,13 @@ function NewProductModal({ companyId, initialCatalog, ownedMasterIds, onClose }:
   );
 }
 
-/** Subida de foto propia del producto a Firebase Storage (products/{tenantId}/...). */
+/** Foto propia del producto: se sube al servidor (VPS) o se pega el enlace (URL) de una imagen. */
 function OwnPhotoField({ photoUrl, onChange, onBusy, hint }: {
   photoUrl: string;
   onChange: (url: string) => void;
   onBusy: (busy: boolean) => void;
   hint?: string;
 }) {
-  const { data: session } = useSession();
   const fileRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -566,12 +565,19 @@ function OwnPhotoField({ photoUrl, onChange, onBusy, hint }: {
     setUploading(true);
     onBusy(true);
     try {
-      const tenant = session?.tenantId ?? "tenant";
-      const dest = ref(storage, `products/${tenant}/${Date.now()}-${file.name.replace(/[^a-zA-Z0-9.]/g, "")}`);
-      await uploadBytes(dest, file, { contentType: file.type });
-      onChange(await getDownloadURL(dest));
+      const token = await auth.currentUser?.getIdToken();
+      const fd = new FormData();
+      fd.append("file", file);
+      const res = await fetch(`${API_BASE}/api/v1/uploads/product-photo`, {
+        method: "POST",
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+        body: fd,
+      });
+      if (!res.ok) throw new Error();
+      const data = (await res.json()) as { url: string };
+      onChange(data.url);
     } catch {
-      setError("No pudimos subir la foto. Intenta de nuevo.");
+      setError("No pudimos subir la foto. Como alternativa, pega abajo el enlace (URL) de una imagen.");
     } finally {
       setUploading(false);
       onBusy(false);
@@ -579,7 +585,7 @@ function OwnPhotoField({ photoUrl, onChange, onBusy, hint }: {
   };
 
   return (
-    <div className="space-y-1">
+    <div className="space-y-2">
       <Label>Foto del producto (opcional)</Label>
       <div className="flex items-center gap-3">
         {photoUrl ? (
@@ -605,6 +611,11 @@ function OwnPhotoField({ photoUrl, onChange, onBusy, hint }: {
           </div>
           {hint && <p className="text-xs text-muted-foreground">{hint}</p>}
         </div>
+      </div>
+      <div className="space-y-1">
+        <Label className="text-xs text-muted-foreground">O pega el enlace (URL) de una imagen</Label>
+        <Input value={photoUrl} onChange={(e) => onChange(e.target.value)}
+          placeholder="https://ejemplo.com/foto.jpg" />
       </div>
       {error && <p className="text-xs text-destructive">{error}</p>}
     </div>

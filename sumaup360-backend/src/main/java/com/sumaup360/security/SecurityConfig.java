@@ -32,6 +32,7 @@ public class SecurityConfig {
             "/",
             "/api/v1/health",
             "/api/v1/public/**",   // QR taxista: formulario y solicitud del cliente final
+            "/uploads/**",         // imagenes subidas (fotos de producto): lectura publica
             "/v3/api-docs/**",
             "/swagger-ui/**",
             "/swagger-ui.html"
