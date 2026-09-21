@@ -19,6 +19,8 @@ import {
   Cake,
   ClipboardList,
   BedDouble,
+  ReceiptText,
+  Calculator,
   type LucideIcon,
 } from "lucide-react";
 
@@ -55,6 +57,8 @@ export const NAV_ITEMS: NavItem[] = [
   { label: "Proveedores", href: "/dashboard/suppliers", icon: Truck, module: "supplier", perm: "supplier:read" },
   { label: "Reportes", href: "/dashboard/reports", icon: BarChart3, module: "report", perm: "report:read" },
   { label: "Documentos", href: "/dashboard/settings/document-templates", icon: FileText, module: "invoice", perm: "document-template:read" },
+  { label: "Facturacion", href: "/dashboard/facturacion", icon: ReceiptText, module: null, perm: "einvoice:emit" },
+  { label: "Contabilidad", href: "/dashboard/contabilidad", icon: Calculator, module: null, perm: "accounting:read" },
   { label: "Equipo", href: "/dashboard/team", icon: UserCog, module: null, perm: "user:read" },
   { label: "Modulos", href: "/dashboard/modules", icon: SlidersHorizontal, module: null, perm: "company:manage" },
 ];
