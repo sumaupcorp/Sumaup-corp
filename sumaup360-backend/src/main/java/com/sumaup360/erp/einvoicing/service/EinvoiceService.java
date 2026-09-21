@@ -198,10 +198,17 @@ public class EinvoiceService {
             totalIgv = totalIgv.add(igv);
             total = total.add(lineTotal);
 
+            Product product = it.getProductId() != null
+                    ? productRepository.findByIdAndTenantId(it.getProductId(), tenantId).orElse(null)
+                    : null;
+            String descripcion = notBlank(it.getDescription()) ? it.getDescription().trim()
+                    : (product != null ? product.getName() : "Producto");
+            String codigo = product != null && notBlank(product.getSku()) ? product.getSku() : "";
+
             ObjectNode node = arr.addObject();
             node.put("unidad_de_medida", "NIU");
-            node.put("codigo", "");
-            node.put("descripcion", itemDescription(it, tenantId));
+            node.put("codigo", codigo);
+            node.put("descripcion", descripcion);
             node.put("cantidad", qty);
             node.put("valor_unitario", valorUnit);
             node.put("precio_unitario", valorUnit.multiply(IGV_FACTOR).setScale(2, RoundingMode.HALF_UP));
@@ -233,6 +240,8 @@ public class EinvoiceService {
         payload.put("total", total);
         payload.put("enviar_automaticamente_a_la_sunat", true);
         payload.put("enviar_automaticamente_al_cliente", false);
+        payload.put("cancelado", true); // marcado como pagado (venta del POS)
+        payload.put("medio_de_pago", medioPago(sale.getPaymentMethod()));
         payload.put("formato_de_pdf", "TICKET");
 
         NubefactClient.NubefactResult res = nubefactClient.emit(creds.ruta(), creds.token(), payload);
@@ -273,6 +282,47 @@ public class EinvoiceService {
         return new EmitResult(doc.getFullNumber(), type.name(), doc.getSunatStatus(),
                 pdfUrl, res.enlaceXml(), res.enlaceCdr(), res.qr(), res.hash(),
                 res.aceptadaPorSunat(), res.sunatDescription());
+    }
+
+    // --- historial de comprobantes emitidos ---
+
+    /** Un comprobante fiscal emitido (para el historial). */
+    public record DocumentHistory(UUID id, String fullNumber, String documentType, String sunatStatus,
+                                  String documentStatus, java.math.BigDecimal total, String currency,
+                                  String customerName, OffsetDateTime issuedAt, String pdfUrl,
+                                  String xmlUrl, UUID saleId) {
+    }
+
+    @Transactional(readOnly = true)
+    public List<DocumentHistory> listDocuments(UUID tenantId, UUID companyId) {
+        companyRepository.findByIdAndTenantId(companyId, tenantId)
+                .orElseThrow(() -> new ResourceNotFoundException("Empresa no encontrada."));
+        List<IssuedDocument> docs = new java.util.ArrayList<>(
+                issuedDocumentRepository.findByTenantIdAndCompanyId(tenantId, companyId).stream()
+                        .filter(d -> d.getDocumentType() != null && d.getDocumentType().isFiscal())
+                        .toList());
+        docs.sort((a, b) -> {
+            OffsetDateTime ca = a.getCreatedAt();
+            OffsetDateTime cb = b.getCreatedAt();
+            if (ca == null && cb == null) return 0;
+            if (ca == null) return 1;
+            if (cb == null) return -1;
+            return cb.compareTo(ca); // mas reciente primero
+        });
+        java.util.Map<UUID, String> names = new java.util.HashMap<>();
+        List<DocumentHistory> out = new java.util.ArrayList<>();
+        for (IssuedDocument d : docs) {
+            String customerName = null;
+            if (d.getCustomerId() != null) {
+                customerName = names.computeIfAbsent(d.getCustomerId(), id ->
+                        customerRepository.findByIdAndTenantId(id, tenantId).map(Customer::getName).orElse(null));
+            }
+            out.add(new DocumentHistory(d.getId(), d.getFullNumber(), d.getDocumentType().name(),
+                    d.getSunatStatus(), d.getDocumentStatus() != null ? d.getDocumentStatus().name() : null,
+                    d.getTotal(), d.getCurrency(), customerName, d.getIssuedAt(), d.getPdfUrl(),
+                    d.getXmlUrl(), d.getSaleId()));
+        }
+        return out;
     }
 
     // --- helpers ---
@@ -332,16 +382,17 @@ public class EinvoiceService {
                 .orElseThrow(() -> new BadRequestException("No se pudo asignar la numeracion del comprobante."));
     }
 
-    private String itemDescription(SaleItem it, UUID tenantId) {
-        if (it.getDescription() != null && !it.getDescription().isBlank()) {
-            return it.getDescription();
-        }
-        if (it.getProductId() != null) {
-            return productRepository.findByIdAndTenantId(it.getProductId(), tenantId)
-                    .map(Product::getName)
-                    .orElse("Producto");
-        }
-        return "Producto";
+    /** Medio de pago legible para el comprobante (a partir del metodo del POS). */
+    private static String medioPago(String method) {
+        if (method == null) return "";
+        return switch (method) {
+            case "CASH" -> "EFECTIVO";
+            case "CARD" -> "TARJETA";
+            case "YAPE" -> "YAPE";
+            case "PLIN" -> "PLIN";
+            case "TRANSFER" -> "TRANSFERENCIA";
+            default -> method;
+        };
     }
 
     private String clienteTipoDoc(Customer c) {

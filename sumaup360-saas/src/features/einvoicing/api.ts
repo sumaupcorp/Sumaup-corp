@@ -45,8 +45,35 @@ export function useSaveEinvoicingConfig(companyId: string) {
 
 /** Emite el comprobante electronico de una venta. */
 export function useEmitSale() {
+  const qc = useQueryClient();
   return useMutation({
     mutationFn: (saleId: string) =>
       apiPost<EmitResult>(`/api/v1/erp/einvoicing/sales/${saleId}/emit`),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["einvoicing-documents"] }),
+  });
+}
+
+/** Un comprobante emitido (historial). */
+export interface IssuedDocument {
+  id: string;
+  fullNumber: string | null;
+  documentType: string;
+  sunatStatus: string | null;
+  documentStatus: string | null;
+  total: number;
+  currency: string;
+  customerName: string | null;
+  issuedAt: string | null;
+  pdfUrl: string | null;
+  xmlUrl: string | null;
+  saleId: string | null;
+}
+
+/** Historial de comprobantes electronicos emitidos por la empresa. */
+export function useIssuedDocuments(companyId?: string) {
+  return useQuery({
+    queryKey: ["einvoicing-documents", companyId],
+    queryFn: () => apiGet<IssuedDocument[]>("/api/v1/erp/einvoicing/documents", { companyId }),
+    enabled: !!companyId,
   });
 }

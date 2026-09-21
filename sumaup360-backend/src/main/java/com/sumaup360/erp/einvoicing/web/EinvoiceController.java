@@ -2,6 +2,7 @@ package com.sumaup360.erp.einvoicing.web;
 
 import com.sumaup360.erp.einvoicing.service.EinvoiceService;
 import com.sumaup360.erp.einvoicing.web.EinvoiceDtos.ConfigResponse;
+import com.sumaup360.erp.einvoicing.web.EinvoiceDtos.DocumentHistoryResponse;
 import com.sumaup360.erp.einvoicing.web.EinvoiceDtos.EmitResponse;
 import com.sumaup360.erp.einvoicing.web.EinvoiceDtos.SaveConfigRequest;
 import com.sumaup360.security.SecurityUtils;
@@ -56,5 +57,14 @@ public class EinvoiceController {
     public EmitResponse emit(@PathVariable UUID saleId) {
         UUID tenantId = SecurityUtils.requireCurrentTenant();
         return EmitResponse.from(service.emitFromSale(tenantId, saleId));
+    }
+
+    @GetMapping("/documents")
+    @PreAuthorize("hasAnyAuthority('einvoice:emit','sale:read')")
+    @Operation(summary = "Historial de comprobantes electronicos emitidos de una empresa (requiere sale:read)")
+    public java.util.List<DocumentHistoryResponse> documents(@RequestParam UUID companyId) {
+        UUID tenantId = SecurityUtils.requireCurrentTenant();
+        return service.listDocuments(tenantId, companyId).stream()
+                .map(DocumentHistoryResponse::from).toList();
     }
 }

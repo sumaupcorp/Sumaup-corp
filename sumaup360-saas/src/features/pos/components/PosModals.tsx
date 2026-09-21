@@ -14,6 +14,8 @@ import {
   type Sale,
 } from "@/features/sales/api";
 import type { Product } from "@/features/products/api";
+import { useEmitSale, type EmitResult } from "@/features/einvoicing/api";
+import { useHasPermission } from "@/features/auth/session";
 import { Button } from "@/components/ui/button";
 import { Input, Label, Select } from "@/components/ui/input";
 import { Spinner, Badge } from "@/components/ui/misc";
@@ -242,6 +244,19 @@ export function TicketModal({ sale, companyName, productMap, onClose }: {
   const [downloading, setDownloading] = useState(false);
   const iframeRef = useRef<HTMLIFrameElement>(null);
 
+  const hasPerm = useHasPermission();
+  const emit = useEmitSale();
+  const [emitResult, setEmitResult] = useState<EmitResult | null>(null);
+  const [emitError, setEmitError] = useState<string | null>(null);
+  const doEmit = async () => {
+    setEmitError(null);
+    try {
+      setEmitResult(await emit.mutateAsync(sale.id));
+    } catch (e) {
+      setEmitError((e as Error).message);
+    }
+  };
+
   useEffect(() => {
     let active = true;
     fetchTicketHtml(sale.id)
@@ -328,6 +343,32 @@ export function TicketModal({ sale, companyName, productMap, onClose }: {
             {downloading ? "Generando..." : "Descargar PDF"}
           </Button>
         </div>
+
+        {/* Comprobante electronico: emite la boleta/factura ante SUNAT desde el POS. */}
+        {hasPerm("einvoice:emit") && (
+          <div className="mt-3 space-y-1.5 border-t border-border pt-3">
+            <Label className="flex items-center gap-1.5">
+              Comprobante electronico (SUNAT)
+              <InfoTip align="left" text="Emite la boleta o factura electronica de esta venta ante SUNAT. Si el cliente tiene RUC se emite factura; si no, boleta." />
+            </Label>
+            {emitResult ? (
+              <div className="flex items-center justify-between gap-2 rounded-lg bg-green-50 px-3 py-2">
+                <span className="text-xs font-medium text-green-800">
+                  {emitResult.fullNumber ?? "Emitido"} · {emitResult.sunatStatus ?? ""}
+                </span>
+                {emitResult.pdfUrl && (
+                  <a href={emitResult.pdfUrl} target="_blank" rel="noreferrer"
+                    className="shrink-0 text-xs font-medium text-primary underline">Ver PDF</a>
+                )}
+              </div>
+            ) : (
+              <Button variant="outline" className="h-11 w-full" onClick={doEmit} disabled={emit.isPending}>
+                {emit.isPending ? "Emitiendo..." : "Emitir boleta / factura"}
+              </Button>
+            )}
+            {emitError && <p className="text-xs text-destructive">{emitError}</p>}
+          </div>
+        )}
 
         <div className="mt-3 space-y-1.5 border-t border-border pt-3">
           <Label className="flex items-center gap-1.5">

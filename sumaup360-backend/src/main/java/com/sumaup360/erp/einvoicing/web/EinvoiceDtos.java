@@ -27,6 +27,19 @@ public final class EinvoiceDtos {
         }
     }
 
+    /** Un comprobante emitido, para el historial. */
+    public record DocumentHistoryResponse(String id, String fullNumber, String documentType, String sunatStatus,
+                                          String documentStatus, java.math.BigDecimal total, String currency,
+                                          String customerName, String issuedAt, String pdfUrl, String xmlUrl,
+                                          String saleId) {
+        public static DocumentHistoryResponse from(EinvoiceService.DocumentHistory d) {
+            return new DocumentHistoryResponse(d.id().toString(), d.fullNumber(), d.documentType(),
+                    d.sunatStatus(), d.documentStatus(), d.total(), d.currency(), d.customerName(),
+                    d.issuedAt() != null ? d.issuedAt().toString() : null, d.pdfUrl(), d.xmlUrl(),
+                    d.saleId() != null ? d.saleId().toString() : null);
+        }
+    }
+
     /** Resultado de emitir un comprobante electronico. */
     public record EmitResponse(String fullNumber, String documentType, String sunatStatus,
                                String pdfUrl, String xmlUrl, String cdrUrl, String qrValue,

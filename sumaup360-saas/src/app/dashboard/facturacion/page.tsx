@@ -8,7 +8,9 @@ import {
   useEinvoicingConfig,
   useSaveEinvoicingConfig,
   useEmitSale,
+  useIssuedDocuments,
   type EmitResult,
+  type IssuedDocument,
 } from "@/features/einvoicing/api";
 import { useGenerateEntryFromSale } from "@/features/accounting/api";
 import { Card, CardContent } from "@/components/ui/card";
@@ -36,6 +38,9 @@ export default function FacturacionPage() {
         title="Facturacion electronica"
         subtitle={`${currentCompany.legalName} · Emite boletas y facturas ante SUNAT (NubeFact)`}
       />
+      <div className="mb-6">
+        <IssuedDocsHistory companyId={companyId!} />
+      </div>
       <div className="grid gap-6 lg:grid-cols-3">
         <div className="lg:col-span-2">
           <SalesToEmit companyId={companyId!} />
@@ -47,6 +52,79 @@ export default function FacturacionPage() {
         )}
       </div>
     </div>
+  );
+}
+
+const DOC_TYPE_LABEL: Record<string, string> = {
+  INVOICE: "Factura",
+  SALE_RECEIPT: "Boleta",
+  CREDIT_NOTE: "Nota de credito",
+  DEBIT_NOTE: "Nota de debito",
+};
+
+function statusBadge(d: IssuedDocument): { label: string; variant: "success" | "warning" | "muted" } {
+  const s = (d.sunatStatus ?? "").toUpperCase();
+  if (s === "ACEPTADO") return { label: "Aceptado", variant: "success" };
+  if (s === "ENVIADO") return { label: "Enviado", variant: "warning" };
+  return { label: d.sunatStatus ?? d.documentStatus ?? "—", variant: "muted" };
+}
+
+function IssuedDocsHistory({ companyId }: { companyId: string }) {
+  const docs = useIssuedDocuments(companyId);
+  const items = docs.data ?? [];
+
+  return (
+    <Card>
+      <CardContent className="p-5">
+        <h2 className="mb-1 text-sm font-semibold text-foreground">Historial de comprobantes</h2>
+        <p className="mb-4 text-xs text-muted-foreground">
+          Boletas y facturas electronicas emitidas ante SUNAT.
+        </p>
+        {docs.isLoading ? (
+          <div className="flex justify-center py-10"><Spinner /></div>
+        ) : docs.isError ? (
+          <p className="py-8 text-center text-sm text-destructive">No pudimos cargar el historial.</p>
+        ) : items.length === 0 ? (
+          <p className="py-8 text-center text-sm text-muted-foreground">
+            Aun no has emitido comprobantes. Emite desde una venta abajo o en el POS.
+          </p>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-border text-left text-xs text-muted-foreground">
+                  <th className="py-2 pr-3">Comprobante</th>
+                  <th className="py-2 pr-3">Tipo</th>
+                  <th className="py-2 pr-3">Cliente</th>
+                  <th className="py-2 pr-3 text-right">Total</th>
+                  <th className="py-2 pr-3">Estado</th>
+                  <th className="py-2">PDF</th>
+                </tr>
+              </thead>
+              <tbody>
+                {items.map((d) => {
+                  const b = statusBadge(d);
+                  return (
+                    <tr key={d.id} className="border-b border-border/60">
+                      <td className="py-2 pr-3 whitespace-nowrap font-medium">{d.fullNumber ?? "—"}</td>
+                      <td className="py-2 pr-3 whitespace-nowrap">{DOC_TYPE_LABEL[d.documentType] ?? d.documentType}</td>
+                      <td className="py-2 pr-3">{d.customerName ?? "Cliente varios"}</td>
+                      <td className="py-2 pr-3 text-right whitespace-nowrap">S/ {d.total.toFixed(2)}</td>
+                      <td className="py-2 pr-3"><Badge variant={b.variant}>{b.label}</Badge></td>
+                      <td className="py-2">
+                        {d.pdfUrl ? (
+                          <a href={d.pdfUrl} target="_blank" rel="noreferrer" className="text-primary underline">Ver</a>
+                        ) : <span className="text-muted-foreground">—</span>}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </CardContent>
+    </Card>
   );
 }
 
