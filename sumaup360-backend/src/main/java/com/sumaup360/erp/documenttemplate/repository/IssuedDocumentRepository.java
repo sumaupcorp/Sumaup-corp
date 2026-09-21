@@ -15,4 +15,7 @@ public interface IssuedDocumentRepository extends JpaRepository<IssuedDocument, 
 
     /** Documento emitido para una venta (el ticket del POS). */
     Optional<IssuedDocument> findFirstBySaleIdAndTenantIdOrderByCreatedAtDesc(UUID saleId, UUID tenantId);
+
+    /** Todos los documentos emitidos para una venta (ticket + comprobante fiscal). */
+    List<IssuedDocument> findBySaleIdAndTenantId(UUID saleId, UUID tenantId);
 }

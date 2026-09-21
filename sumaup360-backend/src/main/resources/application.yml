@@ -94,6 +94,15 @@ sunat:
   base-url: ${SUNAT_BASE_URL:http://localhost:8090}
   api-key: ${SUNAT_API_KEY:}
 
+# Facturacion electronica via NubeFact (proveedor SUNAT). Las credenciales REALES van
+# por empresa (erp.company_einvoicing_config, token cifrado). Estas de aqui son un
+# fallback DEMO opcional para pruebas contra el entorno de demostracion de NubeFact:
+# pega la ruta y el token que te da tu cuenta demo de NubeFact.
+nubefact:
+  enabled: ${NUBEFACT_ENABLED:true}
+  demo-ruta: ${NUBEFACT_DEMO_RUTA:}
+  demo-token: ${NUBEFACT_DEMO_TOKEN:}
+
 # Proveedor de IA a usar: openai | gemini (por defecto openai; si falla, usa el otro de respaldo).
 ai:
   provider: ${AI_PROVIDER:openai}
