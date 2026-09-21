@@ -180,7 +180,7 @@ public class EinvoiceService {
             throw new BadRequestException("La venta no tiene items para facturar.");
         }
 
-        DocumentSeriesService.ConsumedNumber num = nextNumber(tenantId, companyId, branch.getId(), type);
+        DocumentSeriesService.ConsumedNumber num = nextNumber(tenantId, companyId, branch.getId(), type, creds.demo());
 
         // Items con base+IGV autoconsistente (evita rechazos de SUNAT por cuadre).
         ObjectNode payload = mapper.createObjectNode();
@@ -277,17 +277,17 @@ public class EinvoiceService {
 
     // --- helpers ---
 
-    private record Creds(String ruta, String token) {
+    private record Creds(String ruta, String token, boolean demo) {
     }
 
     private Creds resolveCreds(UUID tenantId, UUID companyId) {
         Optional<CompanyEinvoicingConfig> cfg = configRepository.findByTenantIdAndCompanyId(tenantId, companyId);
         if (cfg.isPresent() && cfg.get().isEnabled()
                 && notBlank(cfg.get().getNubefactRuta()) && notBlank(cfg.get().getNubefactTokenEnc())) {
-            return new Creds(cfg.get().getNubefactRuta(), cryptoService.decrypt(cfg.get().getNubefactTokenEnc()));
+            return new Creds(cfg.get().getNubefactRuta(), cryptoService.decrypt(cfg.get().getNubefactTokenEnc()), false);
         }
         if (props.isEnabled() && notBlank(props.getDemoRuta()) && notBlank(props.getDemoToken())) {
-            return new Creds(props.getDemoRuta(), props.getDemoToken());
+            return new Creds(props.getDemoRuta(), props.getDemoToken(), true);
         }
         throw new BadRequestException(
                 "Configura tus credenciales de NubeFact (ruta y token) para emitir comprobantes.");
@@ -298,13 +298,17 @@ public class EinvoiceService {
      * por defecto (F001 factura / B001 boleta) para no bloquear la emision.
      */
     private DocumentSeriesService.ConsumedNumber nextNumber(UUID tenantId, UUID companyId,
-                                                            UUID branchId, DocumentType type) {
+                                                            UUID branchId, DocumentType type, boolean demo) {
         Optional<DocumentSeriesService.ConsumedNumber> n =
                 documentSeriesService.consumeNext(tenantId, companyId, type);
         if (n.isPresent()) {
             return n.get();
         }
-        String defSeries = type == DocumentType.INVOICE ? "F001" : "B001";
+        // En demo, NubeFact solo tiene registradas las series de prueba FFF1/BBB1.
+        // Con credenciales reales el emisor registra sus propias series (F001/B001...).
+        String defSeries = demo
+                ? (type == DocumentType.INVOICE ? "FFF1" : "BBB1")
+                : (type == DocumentType.INVOICE ? "F001" : "B001");
         if (documentSeriesRepository.existsByTenantIdAndCompanyIdAndDocumentTypeAndSeries(
                 tenantId, companyId, type, defSeries)) {
             throw new BadRequestException("Tu serie " + defSeries
