@@ -35,4 +35,12 @@ public class UploadController {
         UUID tenantId = SecurityUtils.requireCurrentTenant();
         return new UploadResponse(uploadService.storeImage("products/" + tenantId, file));
     }
+
+    /** Foto del catalogo maestro (staff, backoffice). No usa Firebase Storage. */
+    @PostMapping(value = "/catalog-photo", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @PreAuthorize("hasAuthority('catalog:product:manage')")
+    @Operation(summary = "Sube la foto de un producto del catalogo maestro (requiere catalog:product:manage)")
+    public UploadResponse catalogPhoto(@RequestPart("file") MultipartFile file) {
+        return new UploadResponse(uploadService.storeImage("catalog", file));
+    }
 }

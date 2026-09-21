@@ -1,8 +1,7 @@
 "use client";
 
 import { useMemo, useRef, useState } from "react";
-import { ref as storageRef, uploadBytes, getDownloadURL } from "firebase/storage";
-import { storage } from "@/lib/firebase";
+import { auth } from "@/lib/firebase";
 import {
   useBusinessTypes, useMasterProducts, useCreateMasterProduct, useUpdateMasterProduct,
   useCatalogProposals, useApproveProposal, useRejectProposal,
@@ -12,6 +11,8 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input, Label, Select } from "@/components/ui/input";
 import { PageHeader, Spinner, Badge } from "@/components/ui/misc";
+
+const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8080";
 
 /**
  * Catalogo maestro de productos: el staff registra productos por rubro (una foto canonica
@@ -266,11 +267,19 @@ function ProductForm({ product, rubros, onClose }: {
     setUploading(true);
     setError(null);
     try {
-      const dest = storageRef(storage, `catalog/${Date.now()}_${file.name.replace(/[^\w.\-]+/g, "_")}`);
-      await uploadBytes(dest, file, { contentType: file.type });
-      set("photoUrl", await getDownloadURL(dest));
+      const token = await auth.currentUser?.getIdToken();
+      const fd = new FormData();
+      fd.append("file", file);
+      const res = await fetch(`${API_BASE}/api/v1/uploads/catalog-photo`, {
+        method: "POST",
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+        body: fd,
+      });
+      if (!res.ok) throw new Error();
+      const data = (await res.json()) as { url: string };
+      set("photoUrl", data.url);
     } catch {
-      setError("No pudimos subir la imagen. Revisa las reglas de Storage (carpeta catalog/).");
+      setError("No pudimos subir la imagen. Intenta de nuevo o pega una URL externa.");
     } finally {
       setUploading(false);
     }
