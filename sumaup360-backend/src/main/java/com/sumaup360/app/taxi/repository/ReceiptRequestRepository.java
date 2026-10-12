@@ -12,12 +12,15 @@ import java.util.UUID;
 
 public interface ReceiptRequestRepository extends JpaRepository<ReceiptRequest, UUID> {
     List<ReceiptRequest> findByTaxistaUserIdOrderByCreatedAtDesc(UUID taxistaUserId);
+    List<ReceiptRequest> findByTaxistaUserIdAndOrigenOrderByCreatedAtDesc(UUID taxistaUserId, String origen);
     long countByTaxistaUserId(UUID taxistaUserId);
     Optional<ReceiptRequest> findByIdAndTaxistaUserId(UUID id, UUID taxistaUserId);
     List<ReceiptRequest> findByEstadoOrderByCreatedAtDesc(RequestStatus estado);
+    List<ReceiptRequest> findByEstadoAndOrigenOrderByCreatedAtDesc(RequestStatus estado, String origen);
+    List<ReceiptRequest> findByOrigenOrderByCreatedAtDesc(String origen);
     List<ReceiptRequest> findAllByOrderByCreatedAtDesc();
 
     /** Para evitar solicitudes duplicadas (mismo QR, doc, monto y tipo aun pendientes). */
-    Optional<ReceiptRequest> findFirstByQrTokenAndDocNumberAndMontoAndTipoAndEstadoOrderByCreatedAtDesc(
-            String qrToken, String docNumber, BigDecimal monto, ComprobanteType tipo, RequestStatus estado);
+    Optional<ReceiptRequest> findFirstByTaxistaUserIdAndDocNumberAndMontoAndTipoAndEstadoOrderByCreatedAtDesc(
+            UUID taxistaUserId, String docNumber, BigDecimal monto, ComprobanteType tipo, RequestStatus estado);
 }

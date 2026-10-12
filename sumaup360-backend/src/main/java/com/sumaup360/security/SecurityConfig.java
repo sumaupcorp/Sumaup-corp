@@ -30,6 +30,7 @@ public class SecurityConfig {
 
     private static final String[] PUBLIC_PATHS = {
             "/",
+            "/error",
             "/api/v1/health",
             "/api/v1/public/**",   // QR taxista: formulario y solicitud del cliente final
             "/uploads/**",         // imagenes subidas (fotos de producto): lectura publica
@@ -64,6 +65,7 @@ public class SecurityConfig {
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
+                        .dispatcherTypeMatchers(jakarta.servlet.DispatcherType.ERROR, jakarta.servlet.DispatcherType.FORWARD).permitAll()
                         .requestMatchers(PUBLIC_PATHS).permitAll()
                         .anyRequest().authenticated())
                 .exceptionHandling(ex -> ex

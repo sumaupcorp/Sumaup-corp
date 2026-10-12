@@ -1,5 +1,6 @@
 package com.sumaup360.app.taxi.dto;
 
+import com.fasterxml.jackson.annotation.JsonAlias;
 import com.sumaup360.app.taxi.domain.AttachedFile;
 import com.sumaup360.app.taxi.domain.QrCustomer;
 import com.sumaup360.app.taxi.domain.ReceiptRequest;
@@ -27,17 +28,41 @@ public final class TaxiDtos {
     }
 
     public record RequestView(
-            UUID id, String tipo, BigDecimal monto, BigDecimal montoEditado,
+            UUID id, String tipo, String origen, BigDecimal monto, BigDecimal montoEditado,
             String docType, String docNumber, String customerName, String whatsapp, String email,
             String observacion, String estado, String motivo,
-            OffsetDateTime createdAt, OffsetDateTime completedAt) {
+            OffsetDateTime createdAt, OffsetDateTime completedAt,
+            String taxistaName, String taxistaEmail, String taxistaRuc) {
         public static RequestView from(ReceiptRequest r) {
+            return from(r, null, null, null);
+        }
+        public static RequestView from(ReceiptRequest r, String taxistaName, String taxistaEmail, String taxistaRuc) {
             return new RequestView(r.getId(), r.getTipo() != null ? r.getTipo().name() : null,
+                    r.getOrigen(),
                     r.getMonto(), r.getMontoEditado(), r.getDocType(), r.getDocNumber(),
                     r.getCustomerName(), r.getWhatsapp(), r.getEmail(), r.getObservacion(),
                     r.getEstado() != null ? r.getEstado().name() : null, r.getMotivo(),
-                    r.getCreatedAt(), r.getCompletedAt());
+                    r.getCreatedAt(), r.getCompletedAt(),
+                    taxistaName, taxistaEmail, taxistaRuc);
         }
+    }
+
+    public record CreateCorporateRequest(
+            @NotNull @Positive BigDecimal monto,
+            @NotBlank @Size(max = 15) String docNumber,
+            @NotBlank @Size(max = 200) @JsonAlias({"customerName", "name"}) String name,
+            @NotBlank @Size(max = 20) String whatsapp,
+            @Size(max = 160) String email,
+            @Size(max = 500) String observacion) {
+    }
+
+    public record UpdateCorporateRequest(
+            @NotNull @Positive BigDecimal monto,
+            @NotBlank @Size(max = 15) String docNumber,
+            @NotBlank @Size(max = 200) @JsonAlias({"customerName", "name"}) String name,
+            @NotBlank @Size(max = 20) String whatsapp,
+            @Size(max = 160) String email,
+            @Size(max = 500) String observacion) {
     }
 
     public record EditMontoRequest(@NotNull @Positive BigDecimal monto, @Size(max = 500) String motivo) {

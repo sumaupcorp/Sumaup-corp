@@ -28,8 +28,8 @@ public class ReceiptRequest extends BaseEntity {
     @Column(name = "customer_id")
     private UUID customerId;
 
-    @Column(name = "qr_token", length = 64)
-    private String qrToken;
+    @Column(name = "origen", nullable = false, length = 30)
+    private String origen = "QR";
 
     @Enumerated(EnumType.STRING)
     @Column(name = "tipo", nullable = false, length = 10)

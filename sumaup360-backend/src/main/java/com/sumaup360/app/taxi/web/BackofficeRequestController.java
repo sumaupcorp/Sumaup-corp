@@ -22,7 +22,10 @@ import org.springframework.web.bind.annotation.RestController;
 import java.util.List;
 import java.util.UUID;
 
-/** Backoffice: solicitudes de comprobante de taxistas (procesamiento y adjuntos). */
+/**
+ * Backoffice: solicitudes de comprobante de taxistas (procesamiento y
+ * adjuntos).
+ */
 @RestController
 @RequestMapping("/api/v1/backoffice/requests")
 @Tag(name = "Backoffice - Solicitudes", description = "Solicitudes de comprobante de taxistas")
@@ -36,9 +39,11 @@ public class BackofficeRequestController {
 
     @GetMapping
     @PreAuthorize("hasAuthority('receipt:read')")
-    @Operation(summary = "Lista solicitudes (opcional filtro por estado)")
-    public List<RequestView> list(@RequestParam(required = false) String estado) {
-        return service.list(estado).stream().map(RequestView::from).toList();
+    @Operation(summary = "Lista solicitudes (opcional filtro por estado y origen)")
+    public List<RequestView> list(
+            @RequestParam(required = false) String estado,
+            @RequestParam(required = false) String origen) {
+        return service.listEnriched(estado, origen);
     }
 
     @PostMapping("/{id}/status")
