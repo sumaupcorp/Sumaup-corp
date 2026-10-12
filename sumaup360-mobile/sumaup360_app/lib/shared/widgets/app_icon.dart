@@ -99,9 +99,11 @@ class AppIcon extends StatelessWidget {
     'gift': HugeIcons.strokeRoundedGift,
     'id': HugeIcons.strokeRoundedUser,
     // Sistema
+    'building': HugeIcons.strokeRoundedBuilding01,
     'settings': HugeIcons.strokeRoundedSettings01,
     'logout': HugeIcons.strokeRoundedLogout01,
     // Formularios extra
+    'copy': HugeIcons.strokeRoundedCopy,
     'notes': HugeIcons.strokeRoundedNote01,
     'tag': HugeIcons.strokeRoundedTags,
     'store': HugeIcons.strokeRoundedStore01,

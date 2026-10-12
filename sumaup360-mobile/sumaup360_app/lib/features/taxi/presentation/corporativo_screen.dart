@@ -11,9 +11,9 @@ import '../../../shared/widgets/info_title.dart';
 import '../../../shared/widgets/money_total_card.dart';
 import '../application/taxi_providers.dart';
 import '../domain/corporate_ride.dart';
-import '../domain/receipt_request.dart';
-import 'receipt_detail_screen.dart';
-import 'widgets/taxi_qr_card.dart';
+import 'solicitar_factura_screen.dart';
+import 'solicitudes_list_screen.dart';
+import 'widgets/corporate_request_card.dart';
 
 /// Modulo Corporativo del taxista (Premium). Reemplaza la vista de gastos.
 ///
@@ -31,7 +31,6 @@ class CorporativoScreen extends ConsumerStatefulWidget {
 }
 
 class _CorporativoScreenState extends ConsumerState<CorporativoScreen> {
-  int _segment = 0; // 0 = Corporativo, 1 = Directo (QR)
   final Set<String> _selected = <String>{};
   bool _submitting = false;
 
@@ -98,16 +97,40 @@ class _CorporativoScreenState extends ConsumerState<CorporativoScreen> {
     }
   }
 
+  void _mostrarNuevaSolicitud(String empresa) {
+    showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: AppColors.surface,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(AppSpacing.radiusLg)),
+      ),
+      builder: (_) => _NuevaSolicitudSheet(empresa: empresa),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final ridesAsync = ref.watch(corporateRidesProvider);
     final rides = ridesAsync.valueOrNull ?? const <CorporateRide>[];
     final facturables = rides.where((r) => r.facturable).toList();
     final historial = rides.where((r) => !r.facturable).toList();
-    final porFacturar = facturables.fold<double>(0, (s, r) => s + r.monto);
-    final facturado = historial.fold<double>(0, (s, r) => s + r.monto);
+
+    final corporateRequests = ref.watch(corporateRequestsProvider).valueOrNull ?? const [];
+    final corpPendientes = corporateRequests.where((r) => r.estado != 'COMPLETADO' && r.estado != 'CANCELADO').toList();
+    final corpCompletadas = corporateRequests.where((r) => r.estado == 'COMPLETADO').toList();
+
+    final porFacturar = facturables.fold<double>(0, (s, r) => s + r.monto) +
+        corpPendientes.fold<double>(0, (s, r) => s + r.montoFinal);
+    final countFacturar = facturables.length + corpPendientes.length;
+    final facturado = historial.fold<double>(0, (s, r) => s + r.monto) +
+        corpCompletadas.fold<double>(0, (s, r) => s + r.montoFinal);
+
     final empresa = rides
             .map((r) => r.empresa)
+            .firstWhere((e) => (e ?? '').trim().isNotEmpty, orElse: () => null) ??
+        corporateRequests
+            .map((r) => r.customerName)
             .firstWhere((e) => (e ?? '').trim().isNotEmpty, orElse: () => null) ??
         'tu central';
 
@@ -115,8 +138,7 @@ class _CorporativoScreenState extends ConsumerState<CorporativoScreen> {
       color: AppColors.primary,
       onRefresh: () async {
         ref.invalidate(corporateRidesProvider);
-        ref.invalidate(qrTokenProvider);
-        ref.invalidate(taxiRequestsProvider);
+        ref.invalidate(corporateRequestsProvider);
       },
       child: ListView(
         padding: const EdgeInsets.fromLTRB(AppSpacing.lg, AppSpacing.md, AppSpacing.lg, AppSpacing.xl),
@@ -124,30 +146,23 @@ class _CorporativoScreenState extends ConsumerState<CorporativoScreen> {
           if (!widget.embedded) ...[const Text('Corporativo', style: AppText.h1), const SizedBox(height: AppSpacing.lg)],
           _HeroCard(
             porFacturar: porFacturar,
-            countFacturar: facturables.length,
+            countFacturar: countFacturar,
             facturado: facturado,
             empresa: empresa,
           ),
           const SizedBox(height: AppSpacing.lg),
-          _SegmentedTabs(
-            current: _segment,
-            onChanged: (i) => setState(() => _segment = i),
+          _CorporativoSection(
+            ridesAsync: ridesAsync,
+            facturables: facturables,
+            historial: historial,
+            selected: _selected,
+            submitting: _submitting,
+            empresa: empresa,
+            onToggle: _toggle,
+            onSelectAll: () => _selectAll(facturables),
+            onGenerar: () => _generarFactura(facturables, empresa),
+            onNuevaSolicitud: () => _mostrarNuevaSolicitud(empresa),
           ),
-          const SizedBox(height: AppSpacing.lg),
-          if (_segment == 0)
-            _CorporativoSection(
-              ridesAsync: ridesAsync,
-              facturables: facturables,
-              historial: historial,
-              selected: _selected,
-              submitting: _submitting,
-              empresa: empresa,
-              onToggle: _toggle,
-              onSelectAll: () => _selectAll(facturables),
-              onGenerar: () => _generarFactura(facturables, empresa),
-            )
-          else
-            const _DirectoSection(),
         ],
       ),
     );
@@ -265,67 +280,10 @@ class _HeroPill extends StatelessWidget {
   }
 }
 
-/// Control segmentado tipo pildora (Corporativo / Directo QR).
-class _SegmentedTabs extends StatelessWidget {
-  const _SegmentedTabs({required this.current, required this.onChanged});
-  final int current;
-  final ValueChanged<int> onChanged;
 
-  static const _items = <(String, String)>[
-    ('receipt-tax', 'Corporativo'),
-    ('folder-share', 'Directo · QR'),
-  ];
 
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(4),
-      decoration: BoxDecoration(
-        color: AppColors.surfaceAlt,
-        borderRadius: BorderRadius.circular(AppSpacing.radiusPill),
-        border: Border.all(color: AppColors.border),
-      ),
-      child: Row(
-        children: List.generate(_items.length, (i) {
-          final selected = i == current;
-          final (icon, label) = _items[i];
-          return Expanded(
-            child: GestureDetector(
-              onTap: () => onChanged(i),
-              child: AnimatedContainer(
-                duration: const Duration(milliseconds: 180),
-                padding: const EdgeInsets.symmetric(vertical: 11),
-                decoration: BoxDecoration(
-                  color: selected ? AppColors.surface : Colors.transparent,
-                  borderRadius: BorderRadius.circular(AppSpacing.radiusPill),
-                  boxShadow: selected ? AppShadows.card : null,
-                ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    AppIcon(icon, size: 18, color: selected ? AppColors.primary : AppColors.muted),
-                    const SizedBox(width: 6),
-                    Text(
-                      label,
-                      style: TextStyle(
-                        fontSize: 13,
-                        fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
-                        color: selected ? AppColors.primary : AppColors.muted,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          );
-        }),
-      ),
-    );
-  }
-}
-
-/// Segmento Corporativo: carreras por facturar + generar factura + historial.
-class _CorporativoSection extends StatelessWidget {
+/// Segmento Corporativo: carreras por facturar + solicitudes de factura + historial.
+class _CorporativoSection extends ConsumerWidget {
   const _CorporativoSection({
     required this.ridesAsync,
     required this.facturables,
@@ -336,6 +294,7 @@ class _CorporativoSection extends StatelessWidget {
     required this.onToggle,
     required this.onSelectAll,
     required this.onGenerar,
+    this.onNuevaSolicitud,
   });
 
   final AsyncValue<List<CorporateRide>> ridesAsync;
@@ -347,44 +306,57 @@ class _CorporativoSection extends StatelessWidget {
   final ValueChanged<String> onToggle;
   final VoidCallback onSelectAll;
   final VoidCallback onGenerar;
+  final VoidCallback? onNuevaSolicitud;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final selectedRides = facturables.where((r) => selected.contains(r.id)).toList();
     final selTotal = selectedRides.fold<double>(0, (s, r) => s + r.monto);
     final allSelected = facturables.isNotEmpty && selected.containsAll(facturables.map((r) => r.id).toSet());
 
+    final requestsAsync = ref.watch(corporateRequestsProvider);
+    final corporateRequests = requestsAsync.valueOrNull ?? [];
+    final isLoading = (requestsAsync.isLoading && corporateRequests.isEmpty) && ridesAsync.isLoading;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const _InfoCard(
-          icon: 'receipt-tax',
-          title: 'Carreras pagadas con tarjeta',
-          text:
-              'Cuando el pasajero paga con tarjeta en la app, el dinero va directo a la central. '
-              'Selecciona tus carreras y genera una factura para que la empresa te pague.',
-        ),
         const SizedBox(height: AppSpacing.lg),
         Row(
           children: [
             const Expanded(child: InfoTitle('Por facturar')),
-            if (facturables.isNotEmpty)
-              GestureDetector(
-                onTap: onSelectAll,
+            _BotonNuevaSolicitud(onTap: onNuevaSolicitud),
+          ],
+        ),
+        if (facturables.isNotEmpty) ...[
+          const SizedBox(height: AppSpacing.xs),
+          Align(
+            alignment: Alignment.centerRight,
+            child: GestureDetector(
+              onTap: onSelectAll,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 2),
                 child: Text(
                   allSelected ? 'Quitar todas' : 'Seleccionar todas',
                   style: AppText.small.copyWith(color: AppColors.primary, fontWeight: FontWeight.w600),
                 ),
               ),
-          ],
-        ),
+            ),
+          ),
+        ],
         const SizedBox(height: AppSpacing.md),
-        ridesAsync.when(
-          loading: () => const _SectionLoader(),
-          error: (_, __) => const _SectionError(),
-          data: (_) => facturables.isEmpty
-              ? const EmptyHint(text: 'No tienes carreras por facturar en este momento.')
-              : Column(
+        if (isLoading)
+          const _SectionLoader()
+        else if (facturables.isEmpty && corporateRequests.isEmpty)
+          const EmptyHint(
+            text: 'No tienes carreras por facturar en este momento. Toca "+ Nueva solicitud" para ingresar una factura.',
+          )
+        else
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              if (facturables.isNotEmpty)
+                Column(
                   children: facturables
                       .map((r) => _RideCard(
                             ride: r,
@@ -394,7 +366,43 @@ class _CorporativoSection extends StatelessWidget {
                           ))
                       .toList(),
                 ),
-        ),
+              if (corporateRequests.isNotEmpty) ...[
+                if (facturables.isNotEmpty) const SizedBox(height: AppSpacing.lg),
+                const SizedBox(height: AppSpacing.sm),
+                Column(
+                  children: corporateRequests
+                      .take(5)
+                      .map((r) => CorporateRequestCard(
+                            request: r,
+                            empresa: empresa,
+                          ))
+                      .toList(),
+                ),
+                if (corporateRequests.length > 5) ...[
+                  const SizedBox(height: AppSpacing.xs),
+                  SizedBox(
+                    width: double.infinity,
+                    child: OutlinedButton(
+                      onPressed: () => Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) => SolicitudesListScreen(
+                            origen: 'CORPORATIVO',
+                            title: 'Facturas corporativas',
+                            empresa: empresa,
+                          ),
+                        ),
+                      ),
+                      style: OutlinedButton.styleFrom(
+                        minimumSize: const Size.fromHeight(44),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppSpacing.radius)),
+                      ),
+                      child: Text('Ver todas las facturas (${corporateRequests.length})'),
+                    ),
+                  ),
+                ],
+              ],
+            ],
+          ),
         if (selectedRides.isNotEmpty) ...[
           const SizedBox(height: AppSpacing.sm),
           _GenerarBar(
@@ -415,34 +423,7 @@ class _CorporativoSection extends StatelessWidget {
   }
 }
 
-/// Segmento Directo (QR): QR unico + carreras registradas por el QR.
-class _DirectoSection extends ConsumerWidget {
-  const _DirectoSection();
 
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final requests = ref.watch(taxiRequestsProvider);
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const TaxiQrCard(),
-        const SizedBox(height: AppSpacing.xl),
-        const InfoTitle(
-          'Carreras registradas por QR',
-          info: 'Cada vez que un pasajero escanea tu QR y pide su comprobante, la carrera aparece aqui.',
-        ),
-        const SizedBox(height: AppSpacing.md),
-        requests.when(
-          loading: () => const _SectionLoader(),
-          error: (_, __) => const _SectionError(),
-          data: (list) => list.isEmpty
-              ? const EmptyHint(text: 'Aun no registras carreras por QR. Comparte tu QR con tus pasajeros.')
-              : Column(children: list.map((r) => _RequestTile(request: r)).toList()),
-        ),
-      ],
-    );
-  }
-}
 
 /// Tarjeta de una carrera corporativa (seleccionable en modo facturar).
 class _RideCard extends StatelessWidget {
@@ -532,69 +513,9 @@ class _RideCard extends StatelessWidget {
   }
 }
 
-/// Tile compacto de una solicitud/carrera registrada por QR.
-class _RequestTile extends StatelessWidget {
-  const _RequestTile({required this.request});
-  final ReceiptRequestModel request;
 
-  @override
-  Widget build(BuildContext context) {
-    final r = request;
-    return Container(
-      margin: const EdgeInsets.only(bottom: AppSpacing.md),
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(AppSpacing.radiusLg),
-        boxShadow: AppShadows.card,
-      ),
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          borderRadius: BorderRadius.circular(AppSpacing.radiusLg),
-          onTap: () => Navigator.of(context).push(
-            MaterialPageRoute(builder: (_) => ReceiptDetailScreen(request: r)),
-          ),
-          child: Padding(
-            padding: const EdgeInsets.all(AppSpacing.lg),
-            child: Row(
-              children: [
-                Container(
-                  width: 40,
-                  height: 40,
-                  decoration: BoxDecoration(color: AppColors.primarySoft, borderRadius: BorderRadius.circular(12)),
-                  alignment: Alignment.center,
-                  child: const AppIcon('receipt-tax', size: 20, color: AppColors.primary),
-                ),
-                const SizedBox(width: AppSpacing.md),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text('${r.tipo ?? 'Comprobante'} · ${Fmt.money(r.montoFinal)}', style: AppText.bodyStrong),
-                      const SizedBox(height: 2),
-                      Text(
-                        [r.customerName, r.docNumber].where((e) => (e ?? '').isNotEmpty).join(' · ').isEmpty
-                            ? 'Pasajero'
-                            : [r.customerName, r.docNumber].where((e) => (e ?? '').isNotEmpty).join(' · '),
-                        style: AppText.small,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(width: AppSpacing.sm),
-                _RequestBadge(estado: r.estado),
-                const SizedBox(width: 6),
-                const Icon(Icons.chevron_right, color: AppColors.muted, size: 20),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
+
+
 
 class _Check extends StatelessWidget {
   const _Check({required this.selected});
@@ -632,37 +553,7 @@ class _Badge extends StatelessWidget {
   }
 }
 
-class _RequestBadge extends StatelessWidget {
-  const _RequestBadge({required this.estado});
-  final String? estado;
-  @override
-  Widget build(BuildContext context) {
-    final (label, color) = _map(estado);
-    return _Badge(label: label, color: color);
-  }
 
-  (String, Color) _map(String? e) {
-    switch (e) {
-      case 'PENDIENTE_TAXISTA':
-        return ('Pendiente', AppColors.warning);
-      case 'CONFIRMADO_TAXISTA':
-      case 'MONTO_EDITADO_CONFIRMADO':
-        return ('Confirmado', AppColors.primary);
-      case 'RECHAZADO_TAXISTA':
-      case 'CANCELADO':
-        return ('Rechazado', AppColors.danger);
-      case 'PENDIENTE_BACKOFFICE':
-      case 'EN_PROCESO_BACKOFFICE':
-        return ('En proceso', AppColors.accent);
-      case 'COMPLETADO':
-        return ('Completado', AppColors.success);
-      case 'OBSERVADO':
-        return ('Observado', AppColors.warning);
-      default:
-        return (e ?? '—', AppColors.muted);
-    }
-  }
-}
 
 /// Barra de accion para generar la factura con las carreras seleccionadas.
 class _GenerarBar extends StatelessWidget {
@@ -730,48 +621,6 @@ class _GenerarBar extends StatelessWidget {
   }
 }
 
-/// Card informativa (encabezado explicativo de una seccion).
-class _InfoCard extends StatelessWidget {
-  const _InfoCard({required this.icon, required this.title, required this.text});
-  final String icon;
-  final String title;
-  final String text;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(AppSpacing.lg),
-      decoration: BoxDecoration(
-        color: AppColors.primarySoft,
-        borderRadius: BorderRadius.circular(AppSpacing.radiusLg),
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            width: 40,
-            height: 40,
-            decoration: BoxDecoration(color: AppColors.surface, borderRadius: BorderRadius.circular(12)),
-            alignment: Alignment.center,
-            child: AppIcon(icon, size: 22, color: AppColors.primary),
-          ),
-          const SizedBox(width: AppSpacing.md),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(title, style: AppText.bodyStrong.copyWith(color: AppColors.primaryDark)),
-                const SizedBox(height: 4),
-                Text(text, style: AppText.small.copyWith(color: AppColors.primaryDark)),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
 class _SectionLoader extends StatelessWidget {
   const _SectionLoader();
   @override
@@ -783,9 +632,171 @@ class _SectionLoader extends StatelessWidget {
       );
 }
 
-class _SectionError extends StatelessWidget {
-  const _SectionError();
+
+
+/// Boton de accion para crear una nueva solicitud o requerimiento de factura.
+class _BotonNuevaSolicitud extends StatelessWidget {
+  const _BotonNuevaSolicitud({this.onTap});
+  final VoidCallback? onTap;
+
   @override
-  Widget build(BuildContext context) =>
-      const EmptyHint(text: 'No pudimos cargar la informacion. Desliza hacia abajo para reintentar.');
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(AppSpacing.radiusPill),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+          decoration: BoxDecoration(
+            color: AppColors.primarySoft,
+            borderRadius: BorderRadius.circular(AppSpacing.radiusPill),
+            border: Border.all(color: AppColors.primary.withValues(alpha: 0.15)),
+          ),
+          child: const Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              AppIcon('plus', size: 14, color: AppColors.primary),
+              SizedBox(width: 5),
+              Text(
+                'Nueva solicitud',
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.primary,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
 }
+
+/// Hoja modal que orienta al conductor entre pedir factura o registrar una carrera manual.
+class _NuevaSolicitudSheet extends StatelessWidget {
+  const _NuevaSolicitudSheet({required this.empresa});
+  final String empresa;
+
+  @override
+  Widget build(BuildContext context) {
+    return SafeArea(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(AppSpacing.lg, AppSpacing.md, AppSpacing.lg, AppSpacing.xl),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Center(
+              child: Container(
+                width: 36,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: AppColors.border,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+            ),
+            const SizedBox(height: AppSpacing.lg),
+            Row(
+              children: [
+                Container(
+                  width: 36,
+                  height: 36,
+                  decoration: BoxDecoration(
+                    color: AppColors.primarySoft,
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  alignment: Alignment.center,
+                  child: const AppIcon('square-plus', size: 20, color: AppColors.primary),
+                ),
+                const SizedBox(width: AppSpacing.md),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text('Nueva solicitud', style: AppText.title),
+                      const SizedBox(height: 2),
+                      Text('Gestiona tus cobros o carreras con $empresa', style: AppText.small),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: AppSpacing.lg),
+            _SheetOption(
+              icon: 'receipt-tax',
+              title: 'Solicitar factura a la empresa',
+              subtitle: 'Pide a la central la liquidación o facturación de tus carreras.',
+              onTap: () {
+                Navigator.pop(context);
+                Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (_) => SolicitarFacturaScreen(empresa: empresa),
+                  ),
+                );
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _SheetOption extends StatelessWidget {
+  const _SheetOption({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+    required this.onTap,
+  });
+
+  final String icon;
+  final String title;
+  final String subtitle;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: AppColors.surfaceAlt,
+      borderRadius: BorderRadius.circular(AppSpacing.radius),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(AppSpacing.radius),
+        child: Padding(
+          padding: const EdgeInsets.all(AppSpacing.md),
+          child: Row(
+            children: [
+              Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  color: AppColors.surface,
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                alignment: Alignment.center,
+                child: AppIcon(icon, size: 20, color: AppColors.primary),
+              ),
+              const SizedBox(width: AppSpacing.md),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(title, style: AppText.bodyStrong),
+                    const SizedBox(height: 2),
+                    Text(subtitle, style: AppText.small),
+                  ],
+                ),
+              ),
+              const Icon(Icons.chevron_right, size: 20, color: AppColors.muted),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+

@@ -34,6 +34,7 @@ import '../features/income/presentation/income_form_screen.dart';
 import '../features/expenses/presentation/expense_form_screen.dart';
 import '../features/receipts/presentation/receipt_upload_screen.dart';
 import '../features/stats/presentation/stats_screen.dart';
+import '../features/home/presentation/movements_screen.dart';
 
 /// Rutas de la app.
 class Routes {
@@ -72,6 +73,7 @@ class Routes {
   static const account = '/account';
   static const chat = '/chat';
   static const aiDiagnosis = '/ai-diagnosis';
+  static const movements = '/movements';
 }
 
 final appRouter = GoRouter(
@@ -115,6 +117,7 @@ final appRouter = GoRouter(
     GoRoute(path: Routes.account, builder: (_, __) => const AccountScreen()),
     GoRoute(path: Routes.chat, builder: (_, __) => const ChatScreen()),
     GoRoute(path: Routes.aiDiagnosis, builder: (_, __) => const AiDiagnosisScreen()),
+    GoRoute(path: Routes.movements, builder: (_, __) => const MovementsScreen()),
   ],
   errorBuilder: (_, state) => Scaffold(
     body: Center(child: Text('Ruta no encontrada: ${state.uri}')),

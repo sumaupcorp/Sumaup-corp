@@ -27,10 +27,74 @@ class TaxiRepository {
     }
   }
 
-  Future<List<ReceiptRequestModel>> requests() async {
+  Future<List<ReceiptRequestModel>> requests({String? origen}) async {
     try {
-      final res = await _dio.get<List<dynamic>>('/app/taxi/requests');
+      final res = await _dio.get<List<dynamic>>(
+        '/app/taxi/requests',
+        queryParameters: {
+          if (origen != null && origen.isNotEmpty) 'origen': origen,
+        },
+      );
       return (res.data ?? []).map((e) => ReceiptRequestModel.fromJson(e as Map<String, dynamic>)).toList();
+    } on DioException catch (e) {
+      throw AppException.fromDio(e);
+    }
+  }
+
+  /// Crea una solicitud de factura corporativa generada directamente por el taxista hacia la empresa.
+  Future<void> createCorporateRequest({
+    required double monto,
+    required String docType,
+    required String docNumber,
+    required String customerName,
+    required String whatsapp,
+    String? email,
+    String? observacion,
+  }) async {
+    try {
+      await _dio.post<Map<String, dynamic>>(
+        '/app/taxi/corporate-requests',
+        data: {
+          'monto': monto,
+          'docType': docType,
+          'docNumber': docNumber,
+          'name': customerName,
+          'customerName': customerName,
+          'whatsapp': whatsapp,
+          if (email != null && email.trim().isNotEmpty) 'email': email.trim(),
+          if (observacion != null && observacion.trim().isNotEmpty) 'observacion': observacion.trim(),
+        },
+      );
+    } on DioException catch (e) {
+      throw AppException.fromDio(e);
+    }
+  }
+
+  /// Edita los datos de una solicitud de factura corporativa pendiente.
+  Future<void> updateCorporateRequest({
+    required String id,
+    required double monto,
+    required String docType,
+    required String docNumber,
+    required String customerName,
+    required String whatsapp,
+    String? email,
+    String? observacion,
+  }) async {
+    try {
+      await _dio.put<Map<String, dynamic>>(
+        '/app/taxi/corporate-requests/$id',
+        data: {
+          'monto': monto,
+          'docType': docType,
+          'docNumber': docNumber,
+          'name': customerName,
+          'customerName': customerName,
+          'whatsapp': whatsapp,
+          if (email != null && email.trim().isNotEmpty) 'email': email.trim(),
+          if (observacion != null && observacion.trim().isNotEmpty) 'observacion': observacion.trim(),
+        },
+      );
     } on DioException catch (e) {
       throw AppException.fromDio(e);
     }
@@ -53,7 +117,12 @@ class TaxiRepository {
       final res = await _dio.get<List<dynamic>>('/app/taxi/corporate/rides');
       return (res.data ?? []).map((e) => CorporateRide.fromJson(e as Map<String, dynamic>)).toList();
     } on DioException catch (e) {
+      if (e.response?.statusCode == 404 || e.response?.statusCode == 500) {
+        return const <CorporateRide>[];
+      }
       throw AppException.fromDio(e);
+    } catch (_) {
+      return const <CorporateRide>[];
     }
   }
 
@@ -63,6 +132,55 @@ class TaxiRepository {
       await _dio.post<Map<String, dynamic>>('/app/taxi/corporate/invoices', data: {'rideIds': rideIds});
     } on DioException catch (e) {
       throw AppException.fromDio(e);
+    }
+  }
+
+  /// Crea una solicitud de comprobante (factura/boleta).
+  Future<void> createRequest({
+    String? token,
+    required String tipo,
+    required double monto,
+    required String docType,
+    required String docNumber,
+    required String name,
+    required String whatsapp,
+    String? email,
+    String? observacion,
+  }) async {
+    try {
+      final t = (token != null && token.isNotEmpty) ? token : await qrToken();
+      await _dio.post<Map<String, dynamic>>(
+        '/public/qr/taxi/$t/request',
+        data: {
+          'tipo': tipo,
+          'monto': monto,
+          'docType': docType,
+          'docNumber': docNumber,
+          'name': name,
+          'whatsapp': whatsapp,
+          if (email != null && email.trim().isNotEmpty) 'email': email.trim(),
+          if (observacion != null && observacion.trim().isNotEmpty) 'observacion': observacion.trim(),
+        },
+      );
+    } on DioException catch (e) {
+      throw AppException.fromDio(e);
+    }
+  }
+
+  /// Consulta el nombre o razón social por documento del cliente.
+  Future<String?> lookupCustomer({String? token, required String doc}) async {
+    try {
+      final t = (token != null && token.isNotEmpty) ? token : await qrToken();
+      final res = await _dio.get<Map<String, dynamic>>(
+        '/public/qr/taxi/$t/customers/lookup',
+        queryParameters: {'doc': doc.trim()},
+      );
+      if (res.data?['found'] == true && res.data?['name'] != null) {
+        return res.data!['name'] as String;
+      }
+      return null;
+    } catch (_) {
+      return null;
     }
   }
 

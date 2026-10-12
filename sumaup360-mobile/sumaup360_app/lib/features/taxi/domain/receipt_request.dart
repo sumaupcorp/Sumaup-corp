@@ -13,6 +13,7 @@ class ReceiptRequestModel {
     this.observacion,
     this.estado,
     this.motivo,
+    this.origen,
     this.createdAt,
     this.completedAt,
   });
@@ -29,10 +30,14 @@ class ReceiptRequestModel {
   final String? observacion;
   final String? estado;
   final String? motivo;
+  final String? origen;
   final String? createdAt;
   final String? completedAt;
 
   bool get isPendiente => estado == 'PENDIENTE_TAXISTA';
+  bool get isCorporativo => (origen ?? '').toUpperCase() == 'CORPORATIVO';
+  bool get isQr => !isCorporativo;
+  bool get canTaxistaEdit => isCorporativo && estado != 'COMPLETADO' && estado != 'CANCELADO';
   double get montoFinal => montoEditado ?? monto ?? 0;
 
   factory ReceiptRequestModel.fromJson(Map<String, dynamic> j) => ReceiptRequestModel(
@@ -48,6 +53,7 @@ class ReceiptRequestModel {
         observacion: j['observacion'] as String?,
         estado: j['estado'] as String?,
         motivo: j['motivo'] as String?,
+        origen: j['origen'] as String?,
         createdAt: j['createdAt'] as String?,
         completedAt: j['completedAt'] as String?,
       );

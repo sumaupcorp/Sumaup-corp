@@ -12,6 +12,18 @@ final qrTokenProvider = FutureProvider<String>((ref) => ref.watch(taxiRepository
 final taxiRequestsProvider =
     FutureProvider<List<ReceiptRequestModel>>((ref) => ref.watch(taxiRepositoryProvider).requests());
 
+/// Solicitudes originadas por el QR (cliente final).
+final qrRequestsProvider = FutureProvider<List<ReceiptRequestModel>>((ref) async {
+  final list = await ref.watch(taxiRepositoryProvider).requests(origen: 'QR');
+  return list.where((r) => r.isQr).toList();
+});
+
+/// Solicitudes de facturacion corporativa hacia la empresa.
+final corporateRequestsProvider = FutureProvider<List<ReceiptRequestModel>>((ref) async {
+  final list = await ref.watch(taxiRepositoryProvider).requests(origen: 'CORPORATIVO');
+  return list.where((r) => r.isCorporativo).toList();
+});
+
 /// Adjuntos (comprobantes generados) de una solicitud, por id.
 final taxiAttachmentsProvider = FutureProvider.family<List<AttachmentModel>, String>(
   (ref, requestId) => ref.watch(taxiRepositoryProvider).requestAttachments(requestId),

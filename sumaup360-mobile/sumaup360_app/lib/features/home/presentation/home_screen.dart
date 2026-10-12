@@ -47,42 +47,66 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   @override
   Widget build(BuildContext context) {
     final profile = ref.watch(profileMeProvider).valueOrNull;
-    // Tipo de modulo del 4o tab segun el rol: taxi (Comprobantes) | peya | servicios.
-    final String kind = profile?.isDeliveryPeya == true
-        ? 'peya'
-        : profile?.isServiciosProfesionales == true
-            ? 'servicios'
-            : 'taxi';
-    final (String moduleIcon, String moduleLabel) = switch (kind) {
+
+    // 1. Determinar el segmento del usuario
+    final isPeya = profile?.isDeliveryPeya == true;
+    final isServicios = profile?.isServiciosProfesionales == true;
+    final isTaxi = !isPeya && !isServicios;
+    
+    final kind = isPeya ? 'peya' : (isServicios ? 'servicios' : 'taxi');
+
+    final (moduleIcon, moduleLabel) = switch (kind) {
       'peya' => ('arrow-bar-to-down', 'Peya'),
       'servicios' => ('notes', 'Servicios'),
-      _ => ('receipt', 'Comprobantes'),
+      _ => ('receipt', 'Boletas'),
     };
-    // El taxista no registra ingresos/gastos manualmente: su flujo de dinero es
-    // Corporativo (facturas a la central por carreras con tarjeta) + su QR de
-    // carreras directas. Por eso reemplazamos sus tabs Ingresos y Gastos por un
-    // unico tab Corporativo. Los demas segmentos conservan Ingresos y Gastos.
-    final bool isTaxi = kind == 'taxi';
-    final tabs = <Widget>[
-      _HomeTab(onOpenProfile: () => context.push(Routes.account)),
-      if (!isTaxi) const IncomeScreen(embedded: true),
-      if (isTaxi) const _CorporativoTab() else const ExpenseScreen(embedded: true),
-      _ModuleTab(kind: kind),
-      const ChatScreen(embedded: true),
+
+    // 2. Definir los tabs agrupando el widget (pantalla) y su info para el Navbar
+    final tabsConfig = <({Widget screen, String icon, String label})>[
+      (
+        screen: _HomeTab(onOpenProfile: () => context.push(Routes.account)),
+        icon: 'home',
+        label: 'Inicio',
+      ),
+      if (!isTaxi)
+        (
+          screen: const IncomeScreen(embedded: true),
+          icon: 'trending-up',
+          label: 'Ingresos',
+        ),
+      if (isTaxi)
+        (
+          screen: const _CorporativoTab(),
+          icon: 'building',
+          label: 'Corporativo',
+        )
+      else
+        (
+          screen: const ExpenseScreen(embedded: true),
+          icon: 'trending-down',
+          label: 'Gastos',
+        ),
+      (
+        screen: _ModuleTab(kind: kind),
+        icon: moduleIcon,
+        label: moduleLabel,
+      ),
+      (
+        screen: const ChatScreen(embedded: true),
+        icon: 'help-small',
+        label: 'Chat',
+      ),
     ];
-    final navItems = <(String, String)>[
-      ('home', 'Inicio'),
-      if (!isTaxi) ('trending-up', 'Ingresos'),
-      if (isTaxi) ('receipt-tax', 'Corporativo') else ('trending-down', 'Gastos'),
-      (moduleIcon, moduleLabel),
-      ('help-small', 'Chat'),
-    ];
-    // El numero de tabs cambia segun el segmento; evitamos un indice fuera de rango.
-    final int tab = _tab.clamp(0, tabs.length - 1);
+
+    // 3. Extraer la data necesaria para la UI a partir de la configuración unificada
+    final int currentTab = _tab.clamp(0, tabsConfig.length - 1);
+    final Widget currentScreen = tabsConfig[currentTab].screen;
+    final navItems = tabsConfig.map((t) => (t.icon, t.label)).toList();
+
     return Scaffold(
       backgroundColor: AppColors.surfaceAlt,
-      body: SafeArea(bottom: false, child: tabs[tab]),
-      bottomNavigationBar: _FloatingNavBar(current: tab, onTap: _goTab, items: navItems),
+      body: SafeArea(bottom: false, child: currentScreen),
+      bottomNavigationBar: _FloatingNavBar(current: currentTab, onTap: _goTab, items: navItems),
     );
   }
 }
@@ -132,6 +156,9 @@ class _FloatingNavBar extends StatelessWidget {
                     const SizedBox(height: 4),
                     Text(
                       label,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      softWrap: false,
                       style: TextStyle(
                         fontSize: 11,
                         fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
@@ -161,12 +188,24 @@ class _HomeTab extends ConsumerWidget {
     final verified = ref.read(authControllerProvider).isEmailVerified;
     final summary = ref.watch(summaryProvider);
 
+    final isPeya = profile?.isDeliveryPeya == true;
+    final isServicios = profile?.isServiciosProfesionales == true;
+    final kind = isPeya ? 'peya' : (isServicios ? 'servicios' : 'taxi');
+    final feature = switch (kind) {
+      'peya' => 'PEYA_UPLOAD_PDF',
+      'servicios' => 'HONORARIOS_RECIBO',
+      _ => 'TAXI_COMPROBANTES',
+    };
+    final accessResult = ref.watch(featureAccessProvider(feature)).valueOrNull;
+    final isPremium = accessResult?.allowed == true;
+
     return RefreshIndicator(
       color: AppColors.primary,
       onRefresh: () async {
         ref.invalidate(summaryProvider);
         ref.invalidate(incomeListProvider);
         ref.invalidate(expenseListProvider);
+        ref.invalidate(featureAccessProvider);
       },
       child: ListView(
         padding: const EdgeInsets.fromLTRB(AppSpacing.lg, AppSpacing.md, AppSpacing.lg, AppSpacing.xl),
@@ -193,9 +232,11 @@ class _HomeTab extends ConsumerWidget {
             info: 'Accesos directos para registrar tus ingresos, gastos y boletas, o ver tus estadisticas.',
           ),
           const SizedBox(height: AppSpacing.md),
-          const _QuickActions(),
-          const SizedBox(height: AppSpacing.xl),
-          const _ProUpgradeCard(),
+          _QuickActions(isTaxi: kind == 'taxi'),
+          if (!isPremium) ...[
+            const SizedBox(height: AppSpacing.xl),
+            const _ProUpgradeCard(),
+          ],
           // Orientacion tributaria: si esta PENDING ya se muestra el banner de
           // arriba; si la completo puede VER su resultado guardado; si tiene RUC
           // (o cuenta antigua) puede evaluarse/recategorizarse una unica vez.
@@ -204,10 +245,11 @@ class _HomeTab extends ConsumerWidget {
             _OrientationCard(completed: profile?.orientationStatus == 'COMPLETED'),
           ],
           const SizedBox(height: AppSpacing.xl),
-          const InfoTitle(
+          InfoTitle(
             'Ultimos movimientos',
             info: 'Tus ingresos y gastos mas recientes. Toca "Ver todo" para revisar el historial completo.',
             action: 'Ver todo',
+            onAction: () => context.push(Routes.movements),
           ),
           const SizedBox(height: AppSpacing.md),
           const _RecentMovements(),
@@ -656,11 +698,13 @@ class _OrientationCard extends StatelessWidget {
 }
 
 class _QuickActions extends StatelessWidget {
-  const _QuickActions();
+  const _QuickActions({required this.isTaxi});
+  final bool isTaxi;
+
   @override
   Widget build(BuildContext context) {
     final actions = <(String, String, Color, String)>[
-      ('receipt-tax', 'Subir boleta', AppColors.primary, Routes.receiptUpload),
+      if (!isTaxi) ('receipt-tax', 'Subir boleta', AppColors.primary, Routes.receiptUpload),
       ('arrow-bar-to-up', 'Registrar gasto', AppColors.danger, Routes.expenseForm),
       ('arrow-bar-to-down', 'Registrar ingreso', AppColors.success, Routes.incomeForm),
       ('brand-google-analytics', 'Estadisticas', AppColors.accent, Routes.stats),
@@ -677,6 +721,7 @@ class _QuickActions extends StatelessWidget {
     );
   }
 }
+
 
 class _QuickActionTile extends StatelessWidget {
   const _QuickActionTile({required this.icon, required this.label, required this.color, required this.route});
