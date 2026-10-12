@@ -9,7 +9,9 @@ export interface ReceiptRequest {
   id: string; tipo: string | null; monto: number | null; montoEditado: number | null;
   docType: string | null; docNumber: string | null; customerName: string | null;
   whatsapp: string | null; email: string | null; observacion: string | null;
-  estado: string | null; motivo: string | null; createdAt: string | null; completedAt: string | null;
+  estado: string | null; motivo: string | null; origen?: string | null;
+  createdAt: string | null; completedAt: string | null;
+  taxistaName: string | null; taxistaEmail: string | null;
 }
 export interface Attachment { id: string; fileUrl: string; fileName: string | null; createdAt: string | null; }
 
@@ -18,10 +20,13 @@ export const REQUEST_STATES = [
   "PENDIENTE_BACKOFFICE", "EN_PROCESO_BACKOFFICE", "COMPLETADO", "OBSERVADO", "CANCELADO",
 ] as const;
 
-export function useRequests(estado: string) {
+export function useRequests(estado?: string, origen?: string) {
   return useQuery({
-    queryKey: ["requests", estado],
-    queryFn: () => apiGet<ReceiptRequest[]>(BASE, { estado: estado || undefined }),
+    queryKey: ["requests", estado, origen],
+    queryFn: () => apiGet<ReceiptRequest[]>(BASE, {
+      estado: estado || undefined,
+      origen: origen || undefined,
+    }),
   });
 }
 

@@ -63,17 +63,24 @@ function waLink(whatsapp: string, message: string): string {
 
 export default function SolicitudesPage() {
   const [estado, setEstado] = useState("");
-  const { data: requests = [], isLoading } = useRequests(estado);
+  const [origen, setOrigen] = useState("");
+  const { data: requests = [], isLoading } = useRequests(estado, origen);
   const [selected, setSelected] = useState<ReceiptRequest | null>(null);
 
   return (
     <div>
-      <PageHeader title="Solicitudes" subtitle="Comprobantes solicitados por clientes de taxistas" />
+      <PageHeader title="Solicitudes" subtitle="Comprobantes solicitados por taxistas o clientes vía QR" />
 
-      <div className="mb-4">
-        <Select value={estado} onChange={(e) => setEstado(e.target.value)} className="h-9 w-64">
+      <div className="mb-4 flex flex-wrap items-center gap-3">
+        <Select value={estado} onChange={(e) => setEstado(e.target.value)} className="h-9 w-60">
           <option value="">Todos los estados</option>
           {REQUEST_STATES.map((s) => <option key={s} value={s}>{label(s)}</option>)}
+        </Select>
+
+        <Select value={origen} onChange={(e) => setOrigen(e.target.value)} className="h-9 w-52">
+          <option value="">Todos los orígenes</option>
+          <option value="CORPORATIVO">Corporativo (Taxista)</option>
+          <option value="QR">QR Directo (Pasajero)</option>
         </Select>
       </div>
 
@@ -88,8 +95,9 @@ export default function SolicitudesPage() {
               <table className="w-full text-sm">
                 <thead className="border-b border-border text-left text-xs text-muted-foreground">
                   <tr>
-                    <th className="px-4 py-3">Cliente</th>
-                    <th className="px-4 py-3">Tipo</th>
+                    <th className="px-4 py-3">Taxista</th>
+                    <th className="px-4 py-3">Cliente / Empresa</th>
+                    <th className="px-4 py-3">Tipo / Origen</th>
                     <th className="px-4 py-3">Monto</th>
                     <th className="px-4 py-3">Contacto</th>
                     <th className="px-4 py-3">Estado</th>
@@ -100,10 +108,19 @@ export default function SolicitudesPage() {
                   {requests.map((r) => (
                     <tr key={r.id} className="border-b border-border/60">
                       <td className="px-4 py-3">
+                        <div className="font-medium">{r.taxistaName || "—"}</div>
+                        <div className="text-xs text-muted-foreground">{r.taxistaEmail || "—"}</div>
+                      </td>
+                      <td className="px-4 py-3">
                         <div className="font-medium">{r.customerName || "—"}</div>
                         <div className="text-xs text-muted-foreground">{r.docType} {r.docNumber}</div>
                       </td>
-                      <td className="px-4 py-3">{r.tipo === "FACTURA" ? "Factura" : "Boleta"}</td>
+                      <td className="px-4 py-3">
+                        <div>{r.tipo === "FACTURA" ? "Factura" : "Boleta"}</div>
+                        <div className="mt-1">
+                          <OrigenBadge origen={r.origen} />
+                        </div>
+                      </td>
                       <td className="px-4 py-3">S/ {(r.montoEditado ?? r.monto ?? 0).toFixed(2)}</td>
                       <td className="px-4 py-3">
                         <div>{r.whatsapp || "—"}</div>
@@ -236,16 +253,25 @@ function ManageModal({ request, onClose }: { request: ReceiptRequest; onClose: (
       >
         <div className="mb-4 flex items-start justify-between">
           <div>
-            <h2 className="font-heading text-base font-semibold">Solicitud de comprobante</h2>
-            <p className="text-sm text-muted-foreground">
+            <div className="flex items-center gap-2">
+              <h2 className="font-heading text-base font-semibold">Solicitud de comprobante</h2>
+              <OrigenBadge origen={request.origen} />
+            </div>
+            <p className="mt-0.5 text-sm text-muted-foreground">
               {request.customerName} · {request.docType} {request.docNumber} · S/ {(request.montoEditado ?? request.monto ?? 0).toFixed(2)}
             </p>
           </div>
           <button onClick={onClose} className="text-muted-foreground hover:text-foreground" aria-label="Cerrar">✕</button>
         </div>
 
+        {request.origen === "CORPORATIVO" && (
+          <div className="mb-4 rounded-lg border border-blue-200 bg-blue-50/70 p-3 text-xs text-blue-900">
+            <span className="font-semibold">Solicitud Corporativa:</span> Ingresada directamente por el taxista para que la central facture sus carreras realizadas.
+          </div>
+        )}
+
         {request.observacion && (
-          <p className="mb-4 rounded-lg bg-muted p-3 text-sm">Observacion del cliente: {request.observacion}</p>
+          <p className="mb-4 rounded-lg bg-muted p-3 text-sm">Observacion: {request.observacion}</p>
         )}
 
         <div className="mb-5 space-y-2">
@@ -376,8 +402,24 @@ function EstadoBadge({ estado }: { estado: string | null }) {
   const v: "default" | "muted" | "success" | "warning" =
     estado === "COMPLETADO" ? "success"
       : estado === "RECHAZADO_TAXISTA" || estado === "CANCELADO" || estado === "OBSERVADO" ? "warning"
-      : estado === "PENDIENTE_TAXISTA" ? "muted" : "default";
+        : estado === "PENDIENTE_TAXISTA" ? "muted" : "default";
   return <Badge variant={v}>{label(estado)}</Badge>;
+}
+
+function OrigenBadge({ origen }: { origen?: string | null }) {
+  const isCorp = (origen || "").toUpperCase() === "CORPORATIVO";
+  if (isCorp) {
+    return (
+      <span className="inline-flex items-center rounded-full bg-blue-50 px-2 py-0.5 text-[11px] font-semibold text-blue-700 border border-blue-200">
+        Corporativo
+      </span>
+    );
+  }
+  return (
+    <span className="inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-medium text-slate-600 border border-slate-200">
+      QR Directo
+    </span>
+  );
 }
 
 function label(s: string | null): string {
