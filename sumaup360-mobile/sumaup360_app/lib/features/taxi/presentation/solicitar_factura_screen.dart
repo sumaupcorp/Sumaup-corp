@@ -30,8 +30,8 @@ class _SolicitarFacturaScreenState extends ConsumerState<SolicitarFacturaScreen>
   final _formKey = GlobalKey<FormState>();
 
   final _monto = TextEditingController();
-  final _ruc = TextEditingController();
-  final _razonSocial = TextEditingController();
+  final _ruc = TextEditingController(text: '20522172023');
+  final _razonSocial = TextEditingController(text: 'AUTOTAXI SATELITAL S.A.C');
   final _whatsapp = TextEditingController();
   final _email = TextEditingController();
   final _observacion = TextEditingController();
